@@ -5,7 +5,8 @@
     "test": "tsx --test test/*.test.ts",
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "tunnel": "node scripts/tunnel.mjs"
   },
   "license": "MIT",
   "type": "module",
