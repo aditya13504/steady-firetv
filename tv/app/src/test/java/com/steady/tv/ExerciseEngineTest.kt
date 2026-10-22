@@ -47,7 +47,7 @@ class ExerciseEngineTest {
         val tracker = run(ExerciseId.CHAIR_STAND_TEST, 45)
         assertTrue(tracker.state.done)
         assertEquals(0L, tracker.state.remainingMs)
-        assertTrue("stands=${tracker.state.reps}", tracker.state.reps in 12..17)
+        assertTrue("stands=${tracker.state.reps}", tracker.state.reps in 9..13)
     }
 
     @Test fun heelRaisesCount() {

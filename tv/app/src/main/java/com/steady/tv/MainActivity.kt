@@ -29,6 +29,9 @@ class MainActivity : ComponentActivity() {
         getPreferences(MODE_PRIVATE).edit().putString("server", server).apply()
         app = AppController(lifecycleScope, Speech(this), server)
         app.start()
+        intent.getStringExtra("demo")?.let { profile ->
+            app.autoDemo(profile, intent.getStringExtra("exercise")?.let { runCatching { com.steady.tv.pose.ExerciseId.valueOf(it) }.getOrNull() })
+        }
         setContent {
             Box(Modifier.fillMaxSize().background(C.night)) {
                 Crossfade(app.screen, label = "screen") { screen ->

@@ -293,7 +293,7 @@ fun SummaryScreen(app: AppController) {
     Row(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 30.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(if (s.stoppedEarly) "Good effort, ${s.profile.name}" else "Well done, ${s.profile.name}", style = T.display)
-            Text("${s.minutes} minutes today", style = T.small)
+            Text(if (s.minutes == 1) "1 minute today" else "${s.minutes} minutes today", style = T.small)
             Spacer(Modifier.height(6.dp))
             for (r in s.results) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {

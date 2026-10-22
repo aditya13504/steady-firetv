@@ -141,8 +141,8 @@ object Motions {
         )
         ExerciseId.CHAIR_STAND_TEST -> Motion(
             listOf(
-                Triple(Figure.armsCrossed(Figure.SEATED), 500, 250), Triple(Figure.armsCrossed(Figure.RISING), 450, 0),
-                Triple(Figure.armsCrossed(Figure.STAND), 400, 250), Triple(Figure.armsCrossed(Figure.RISING), 450, 0)
+                Triple(Figure.armsCrossed(Figure.SEATED), 600, 300), Triple(Figure.armsCrossed(Figure.RISING), 500, 0),
+                Triple(Figure.armsCrossed(Figure.STAND), 500, 300), Triple(Figure.armsCrossed(Figure.RISING), 500, 0)
             )
         )
         ExerciseId.HEEL_RAISE -> Motion(listOf(Triple(Figure.STAND, 700, 600), Triple(Figure.TOES, 800, 700)))

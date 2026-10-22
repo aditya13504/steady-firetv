@@ -149,6 +149,26 @@ class AppController(private val scope: CoroutineScope, private val speech: Speec
 
     private var pendingItems: List<PlanItem>? = null
 
+    /**
+     * Launch shortcut for demos and testing:
+     * `adb shell am start -n com.steady.tv/.MainActivity --es demo maggie [--es exercise CHAIR_STAND_TEST]`
+     */
+    fun autoDemo(profileId: String, exercise: ExerciseId?) {
+        scope.launch {
+            repeat(100) {
+                val p = household?.profiles?.firstOrNull { it.id == profileId }
+                if (p != null) {
+                    if (selected?.id != p.id) select(p)
+                    while (plan == null) delay(100)
+                    pendingItems = exercise?.let { listOf(PlanItem(it, plan?.items?.firstOrNull { i -> i.id == it }?.target ?: Catalog.info(it).defaultTarget)) } ?: plan!!.items
+                    startDemo()
+                    return@launch
+                }
+                delay(100)
+            }
+        }
+    }
+
     fun startDemo() {
         val p = selected ?: return
         startSession(p, pendingItems ?: plan?.items ?: return, demo = true)
