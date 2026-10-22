@@ -168,6 +168,12 @@ class DemoPerson(private val id: ExerciseId, private val seed: Int = 7, private 
     var falling = false
     private var fallStart = 0L
 
+    /** Back on their feet after a (simulated) fall. */
+    fun recover() {
+        falling = false
+        fallStart = 0L
+    }
+
     fun frame(tMs: Long): PoseFrame {
         val cycle = (tMs / motion.cycleMs).toInt()
         var fig = motion.at(tMs)

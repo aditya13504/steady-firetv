@@ -35,8 +35,11 @@ object Lm {
     val LEGS = listOf(L_HIP, R_HIP, L_KNEE, R_KNEE, L_ANKLE, R_ANKLE)
 }
 
-/** A full-body pose at a moment in time. */
-class PoseFrame(val pts: List<Pt>, val tMs: Long) {
+/**
+ * A full-body pose at a moment in time. x is in units of image height (so x and y share a scale and
+ * angles are true); `aspect` is the source image's width / height, the range of x.
+ */
+class PoseFrame(val pts: List<Pt>, val tMs: Long, val aspect: Float = 1f) {
     init {
         require(pts.size >= Lm.COUNT) { "expected ${Lm.COUNT} landmarks, got ${pts.size}" }
     }
@@ -62,7 +65,8 @@ class PoseFrame(val pts: List<Pt>, val tMs: Long) {
         }
 
     companion object {
-        fun of(pts: List<Pt>, tMs: Long) = PoseFrame(pts, tMs)
+        /** From a phone frame: normalized image coordinates plus the image's width / height. */
+        fun fromImage(pts: List<Pt>, tMs: Long, aspect: Float) = PoseFrame(pts.map { Pt(it.x * aspect, it.y, it.v) }, tMs, aspect)
     }
 }
 
@@ -82,7 +86,7 @@ class Smoother(private val alpha: Float = 0.55f) {
             Pt(q.x + alpha * (p.x - q.x), q.y + alpha * (p.y - q.y), p.v)
         }
         last = out
-        return PoseFrame(out, frame.tMs)
+        return PoseFrame(out, frame.tMs, frame.aspect)
     }
 
     fun reset() {

@@ -143,7 +143,7 @@ function loop(now) {
     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (pose) {
-      sendJson({ t: 'pose', ts: Date.now(), lm: pose.map(p => [+p.x.toFixed(4), +p.y.toFixed(4), +(p.visibility ?? 1).toFixed(2)]) });
+      sendJson({ t: 'pose', ts: Date.now(), ar: +(video.videoWidth / video.videoHeight).toFixed(3), lm: pose.map(p => [+p.x.toFixed(4), +p.y.toFixed(4), +(p.visibility ?? 1).toFixed(2)]) });
       ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 6; ctx.lineCap = 'round';
       for (const [a, b] of BONES) {
         ctx.beginPath(); ctx.moveTo(pose[a].x * canvas.width, pose[a].y * canvas.height); ctx.lineTo(pose[b].x * canvas.width, pose[b].y * canvas.height); ctx.stroke();

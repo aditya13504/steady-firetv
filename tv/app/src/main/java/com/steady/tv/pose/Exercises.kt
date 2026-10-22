@@ -163,7 +163,7 @@ class SitToStand(info: ExerciseInfo, target: Int, private val timeLimitMs: Long?
     override fun quality(): Int? = if (reps == 0) null else (100 * cleanReps / reps)
 
     companion object {
-        const val SEATED = 0.35f
+        const val SEATED = 0.42f
         const val STAND = 0.6f
         const val TALL = 0.7f
     }

@@ -38,6 +38,15 @@ function lastResults(p: Profile, id: ExerciseId, n: number): ExerciseResult[] {
 }
 
 export function planFor(p: Profile, now = new Date()): Plan {
+  const plan = buildPlan(p, now);
+  // Lead with what matters most for falls: leg strength, balance, the strength check.
+  const rank = (r: string) => (/sit to stand|balance|chair stand/.test(r) ? 0 : 1);
+  plan.reasons.sort((a, b) => rank(a) - rank(b));
+  plan.why = plan.reasons.join(' ');
+  return plan;
+}
+
+function buildPlan(p: Profile, now: Date): Plan {
   const reasons: string[] = [];
   const items: PlanItem[] = ORDER.map(id => {
     const recent = lastResults(p, id, 2);
@@ -163,13 +172,13 @@ function rulesNote(p: Profile, s: Session): CoachNote {
   const bal = s.results.find(r => r.id === 'ONE_LEG_STAND');
   const prevSts = lastResults(p, 'SIT_TO_STAND', 2)[0];
   const parts: string[] = [];
-  if (sts) parts.push(`${sts.reps} sit to stands${prevSts && sts.reps > prevSts.reps ? `, up from ${prevSts.reps}` : ''}.`);
+  if (sts) parts.push(`${sts.reps} sit to stand${sts.reps === 1 ? '' : 's'}${prevSts && sts.reps > prevSts.reps ? `, up from ${prevSts.reps}` : ''}.`);
   if (bal?.bestHoldMs) parts.push(`Best balance hold: ${Math.round(bal.bestHoldMs / 1000)} seconds.`);
   if (s.chairStand) parts.push(`Chair stand check: ${s.chairStand.stands} stands${s.chairStand.belowAverage ? ', still below the usual range for your age, so keep going.' : ', in the healthy range for your age.'}`);
   return {
     spoken: `Well done, ${p.name}. That's another session in the bank.`,
     summary: parts.join(' ') || 'Session complete.',
-    next: 'Next time we add a little more where you found it easy.',
+    next: 'We add a little more where you found it easy.',
     family: `${p.name} finished a ${Math.round(s.durationSec / 60)}-minute strength and balance session on Steady today.`,
     source: 'rules'
   };
