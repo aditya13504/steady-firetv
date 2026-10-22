@@ -1,0 +1,16 @@
+# One-click deploy of the Steady companion (pairing relay, phone camera page, AI coach).
+# https://render.com/deploy?repo=https://github.com/aditya13504/steady-firetv
+services:
+  - type: web
+    name: steady-companion
+    runtime: docker
+    rootDir: companion
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: openai/gpt-oss-120b

@@ -26,7 +26,8 @@ app.use(express.static(resolve(here, '..', 'public'), { extensions: ['html'] }))
 
 /** The address a phone on the same Wi-Fi can reach. PUBLIC_URL overrides it (e.g. an HTTPS tunnel). */
 function publicBase(): string {
-  if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.replace(/\/$/, '');
+  const pub = process.env.PUBLIC_URL ?? process.env.RENDER_EXTERNAL_URL;
+  if (pub) return pub.replace(/\/$/, '');
   for (const list of Object.values(networkInterfaces())) {
     for (const a of list ?? []) if (a.family === 'IPv4' && !a.internal && !a.address.startsWith('169.254')) return `http://${a.address}:${PORT}`;
   }
