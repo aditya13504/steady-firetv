@@ -133,7 +133,9 @@ class AppController(private val scope: CoroutineScope, private val speech: Speec
     private fun loadPlan() {
         val p = selected ?: return
         scope.launch {
-            plan = runCatching { companion.plan(p.id) }.getOrNull() ?: OfflineHousehold.plan(p)
+            val result = runCatching { companion.plan(p.id) }.getOrNull() ?: OfflineHousehold.plan(p)
+            // A slower request for someone else must not overwrite the plan of the person now selected.
+            if (selected?.id == p.id) plan = result
         }
     }
 
