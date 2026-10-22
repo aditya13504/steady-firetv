@@ -61,7 +61,7 @@ fun HomeScreen(app: AppController) {
     Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(horizontal = 48.dp, vertical = 27.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
-                Text("${greeting()}, ${profile?.name ?: ""}", style = T.display)
+                Text("${house?.greeting ?: greeting()}, ${profile?.name ?: ""}", style = T.display)
                 val reason = house?.likelyReason?.takeIf { it.isNotBlank() && house.likelyId == profile?.id }
                 Text(reason?.let { "$it, so I picked them first." } ?: profile?.goal ?: "", style = T.small, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }

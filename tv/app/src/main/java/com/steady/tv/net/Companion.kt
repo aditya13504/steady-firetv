@@ -30,7 +30,7 @@ data class Profile(
     val history: List<HistoryPoint>
 )
 
-data class Household(val name: String, val familyName: String, val familyRelation: String, val likelyId: String, val likelyReason: String, val profiles: List<Profile>, val llm: Boolean)
+data class Household(val name: String, val familyName: String, val familyRelation: String, val likelyId: String, val likelyReason: String, val profiles: List<Profile>, val llm: Boolean, val greeting: String? = null)
 
 data class PlanItem(val id: ExerciseId, val target: Int)
 
@@ -146,7 +146,7 @@ class CompanionClient(var baseUrl: String, private val onEvent: (PhoneEvent) -> 
         }
         val likely = j.getJSONObject("likely")
         val fam = j.getJSONObject("family")
-        return Household(j.getString("name"), fam.getString("name"), fam.getString("relation"), likely.getString("id"), likely.optString("reason"), profiles, j.optBoolean("llm"))
+        return Household(j.getString("name"), fam.getString("name"), fam.getString("relation"), likely.getString("id"), likely.optString("reason"), profiles, j.optBoolean("llm"), j.optString("greeting").ifBlank { null })
     }
 
     suspend fun plan(profileId: String): Plan {

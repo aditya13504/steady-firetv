@@ -59,6 +59,7 @@ flowchart LR
 
 - **`tv/`**: the Fire TV app. Kotlin with Jetpack Compose for TV (the same stack as Amazon's Fire TV starter sample), minSdk 25 (Fire OS 6+), Leanback launcher banner, D-pad and media-key handling, Android TextToSpeech, OkHttp WebSocket. The exercise engine (`pose/`) is pure Kotlin with JVM unit tests.
 - **`companion/`**: Node + TypeScript. Pairs phone and TV by code, relays pose frames, serves the phone page and the family page, stores household history, and runs the coach. The LLM key stays on this server. Works without an LLM using rule-based text.
+- **[steady-pose](https://github.com/aditya13504/steady-pose)**: the exercise engine, also published as a standalone MIT library.
 - **Demo person**: a synthetic person generated from the same keyframes as the coach animation (with natural jitter and the occasional sloppy rep), so the app runs with no camera at all. The unit tests use it too.
 
 ## Run it
@@ -110,6 +111,10 @@ Scan the QR code on the TV (phone and computer on the same Wi-Fi), tap **Start c
 **No phone?** Choose **Demo person** on the TV. Press **Menu** during a demo session to act out a fall and see the safety flow.
 
 **Family page**: open `http://localhost:8787/family`.
+
+**Demo clock**: `DEMO_HOUR=9 npm start` pins the household clock, so the home screen greets and predicts as if it were 9 AM (Maggie's usual time).
+
+**Demo shortcut**: `adb shell am start -n com.steady.tv/.MainActivity --es demo maggie` starts a demo-person session straight away (add `--es exercise CHAIR_STAND_TEST` for a single exercise).
 
 ## Remote control
 

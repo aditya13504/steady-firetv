@@ -117,7 +117,8 @@ app.get('/api/household', (_req, res) => {
   res.json({
     name: h.name,
     family: h.family,
-    likely: likelyProfile(h),
+    likely: likelyProfile(h, demoNow()),
+    greeting: greetingFor(demoNow()),
     profiles: h.profiles.map(p => ({
       id: p.id,
       name: p.name,
@@ -137,6 +138,18 @@ app.get('/api/household', (_req, res) => {
     llm: llmConfigured()
   });
 });
+
+/** DEMO_HOUR pins the household clock (for demos and recordings); otherwise the real local time. */
+function demoNow(): Date {
+  const d = new Date();
+  if (process.env.DEMO_HOUR) d.setHours(Number(process.env.DEMO_HOUR), 0, 0, 0);
+  return d;
+}
+
+function greetingFor(d: Date): string {
+  const h = d.getHours();
+  return h >= 4 && h < 12 ? 'Good morning' : h < 17 && h >= 12 ? 'Good afternoon' : 'Good evening';
+}
 
 function streak(history: Session[]): number {
   const days = new Set(history.map(s => new Date(s.at).toDateString()));

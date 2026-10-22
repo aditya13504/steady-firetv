@@ -177,7 +177,7 @@ Return JSON with exactly these keys:
 "summary": 2-3 sentences shown on screen: the biggest improvement with its numbers, then one thing to work on,
 "next": one sentence about the next session (do not start with "Next time"),
 "family": one friendly text message sent TO ${recipient}, about ${p.name} in the third person. Do not address ${p.name}.
-If today has a chairStand result, it is the headline: give the number of stands, the previous result (previousChairStand), and whether it is now in the usual range for their age (usual means at least chairStandNorm stands, per the CDC STEADI guide). Mention it in spoken, summary and family.`,
+Only talk about chair stands if today.chairStand exists. If it does, it is the headline: give the number of stands, the previous result (previousChairStand), and whether it is now in the usual range for their age (usual means at least chairStandNorm stands, per the CDC STEADI guide). Mention it in spoken, summary and family.`,
     JSON.stringify({
       name: p.name,
       age: p.age,
@@ -185,8 +185,7 @@ If today has a chairStand result, it is the headline: give the number of stands,
       goal: p.goal,
       today: s,
       previousSessions: previous,
-      previousChairStand: lastTest,
-      chairStandNorm: chairNorm(p),
+      ...(s.chairStand ? { previousChairStand: lastTest, chairStandNorm: chairNorm(p) } : {}),
       exerciseNames: NAMES,
       notes: 'quality = % of clean reps (or steadiness 0-100 for balance). cues = how often each form cue fired. skipped = exercise not finished.'
     })
