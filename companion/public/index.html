@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Steady</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700&display=swap">
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #14213d; color: #f7f3ea; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; padding: 24px; }
+  form { display: grid; gap: 14px; width: min(360px, 100%); text-align: center; }
+  h1 { margin: 0; font-size: 34px; }
+  p { margin: 0; color: #a8b3c9; font-size: 18px; }
+  input { font: inherit; font-size: 40px; letter-spacing: .3em; text-align: center; padding: 12px; border-radius: 14px; border: 2px solid #2b3f6b; background: #0e1830; color: #f7f3ea; }
+  button { font: inherit; font-size: 20px; font-weight: 700; padding: 16px; border: 0; border-radius: 14px; background: #f2c14e; color: #2b1e00; }
+  a { color: #a8b3c9; font-size: 15px; }
+</style>
+</head>
+<body>
+  <form onsubmit="event.preventDefault(); location.href = '/p/' + this.code.value.trim()">
+    <h1>Steady</h1>
+    <p>Enter the 4-digit code shown on your TV.</p>
+    <input name="code" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" required aria-label="TV code">
+    <button>Use this phone as the camera</button>
+    <a href="/family">Family updates</a>
+  </form>
+</body>
+</html>

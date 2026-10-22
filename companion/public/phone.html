@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14213d">
+<title>Steady camera</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700&display=swap">
+<style>
+  :root { --night: #14213d; --deep: #0e1830; --surface: #1d2f57; --cream: #f7f3ea; --muted: #a8b3c9; --sun: #f2c14e; --sage: #7fc8a9; --coral: #f28b82; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--night); color: var(--cream); font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; }
+  body { display: flex; flex-direction: column; min-height: 100dvh; padding: env(safe-area-inset-top) 16px calc(16px + env(safe-area-inset-bottom)); }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 14px 2px 10px; gap: 12px; }
+  header strong { font-size: 22px; }
+  .status { font-size: 15px; color: var(--muted); display: flex; align-items: center; gap: 8px; text-align: right; }
+  .status::before { content: ''; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .status[data-ok="true"]::before { background: var(--sage); }
+  .status[data-ok="false"]::before { background: var(--coral); }
+  .stage { position: relative; border-radius: 20px; overflow: hidden; background: var(--deep); aspect-ratio: 3 / 4; max-height: 56dvh; margin: 0 auto; width: 100%; }
+  video, canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  .overlay { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; padding: 24px; gap: 14px; }
+  .overlay p { margin: 0; font-size: 18px; color: var(--muted); }
+  .private { position: absolute; left: 12px; bottom: 12px; right: 12px; font-size: 13px; background: #0e1830cc; padding: 8px 12px; border-radius: 10px; color: var(--cream); }
+  .now { margin: 14px 2px 6px; min-height: 52px; }
+  .now b { display: block; font-size: 20px; }
+  .now span { color: var(--muted); font-size: 16px; }
+  .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: auto; }
+  button { font: inherit; border: 0; border-radius: 16px; padding: 16px 8px; font-size: 18px; font-weight: 700; background: var(--surface); color: var(--cream); }
+  button:active { transform: scale(0.98); }
+  button.primary { background: var(--sun); color: #2b1e00; }
+  button.voice { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  button.voice[aria-pressed="true"] { background: var(--sage); color: #0e2a1f; }
+  button.ok { grid-column: 1 / -1; background: var(--coral); color: #2a0b08; font-size: 22px; padding: 22px; }
+  .heard { min-height: 22px; font-size: 15px; color: var(--muted); margin: 8px 2px 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <header>
+    <strong>Steady</strong>
+    <span class="status" id="status">Connecting to your TV…</span>
+  </header>
+
+  <div class="stage">
+    <video id="video" playsinline muted></video>
+    <canvas id="canvas"></canvas>
+    <div class="overlay" id="overlay">
+      <p id="overlay-text">Prop your phone against something sturdy, about 2 to 3 meters away, so it can see you from head to feet.</p>
+      <button class="primary" id="start">Start camera</button>
+    </div>
+    <div class="private" id="private" hidden>Your video stays on this phone. Only body points go to the TV.</div>
+  </div>
+
+  <div class="now" id="now"><b>Waiting for the TV</b><span>Pick an exercise on your TV with the remote.</span></div>
+
+  <div class="controls">
+    <button id="pause">Pause</button>
+    <button id="easier">Easier</button>
+    <button id="next">Next</button>
+    <button class="voice" id="voice" aria-pressed="false">🎙 Voice commands</button>
+    <button class="ok" id="imok" hidden>I'm OK</button>
+  </div>
+  <p class="heard" id="heard" aria-live="polite"></p>
+
+<script type="module">
+import { FilesetResolver, PoseLandmarker } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs';
+
+const code = location.pathname.split('/').filter(Boolean).pop();
+const $ = id => document.getElementById(id);
+const statusEl = $('status');
+let ws, landmarker, video = $('video'), canvas = $('canvas'), ctx = canvas.getContext('2d');
+let paused = false, lastSent = 0, running = false;
+
+function setStatus(text, ok) { statusEl.textContent = text; statusEl.dataset.ok = ok === undefined ? '' : String(ok); }
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws?role=phone&code=${code}`);
+  ws.onopen = () => setStatus(`Linked to TV ${code}`, true);
+  ws.onclose = () => { setStatus('TV disconnected. Retrying…', false); setTimeout(connect, 2000); };
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.t === 'error') setStatus(m.message, false);
+    if (m.t === 'state') showState(m);
+    if (m.t === 'tv' && !m.connected) setStatus('TV went to sleep', false);
+  };
+}
+connect();
+
+function sendJson(m) { if (ws?.readyState === 1) ws.send(JSON.stringify(m)); }
+function cmd(c, said) { sendJson({ t: 'cmd', cmd: c, said }); $('heard').textContent = said ? `Heard: “${said}”` : ''; }
+
+function showState(m) {
+  const now = $('now');
+  if (m.status === 'alert') {
+    now.innerHTML = '<b>Are you OK?</b><span>Tap the button or say “I’m OK”.</span>';
+    $('imok').hidden = false;
+    return;
+  }
+  $('imok').hidden = true;
+  if (m.exercise) now.innerHTML = `<b>${m.exercise}</b><span>${m.status === 'paused' ? 'Paused' : `${m.reps} of ${m.target} ${m.unit ?? ''}`}</span>`;
+  else now.innerHTML = `<b>${m.title ?? 'Connected'}</b><span>${m.detail ?? ''}</span>`;
+  $('pause').textContent = m.status === 'paused' ? 'Resume' : 'Pause';
+  paused = m.status === 'paused';
+}
+
+// ---------------------------------------------------------------- camera + pose
+
+$('start').onclick = async () => {
+  $('start').disabled = true;
+  $('overlay-text').textContent = 'Loading the body tracker…';
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+    video.srcObject = stream;
+    await video.play();
+    const fileset = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
+    landmarker = await PoseLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task', delegate: 'GPU' },
+      runningMode: 'VIDEO',
+      numPoses: 1
+    });
+    $('overlay').hidden = true;
+    $('private').hidden = false;
+    running = true;
+    try { await navigator.wakeLock?.request('screen'); } catch {}
+    requestAnimationFrame(loop);
+  } catch (err) {
+    $('start').disabled = false;
+    $('overlay-text').textContent = `Camera problem: ${err.message}. Allow camera access and try again.`;
+  }
+};
+
+const BONES = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28]];
+
+function loop(now) {
+  if (!running) return;
+  if (video.readyState >= 2 && now - lastSent >= 66) {
+    lastSent = now;
+    const result = landmarker.detectForVideo(video, now);
+    const pose = result.landmarks?.[0];
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (pose) {
+      sendJson({ t: 'pose', ts: Date.now(), lm: pose.map(p => [+p.x.toFixed(4), +p.y.toFixed(4), +(p.visibility ?? 1).toFixed(2)]) });
+      ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+      for (const [a, b] of BONES) {
+        ctx.beginPath(); ctx.moveTo(pose[a].x * canvas.width, pose[a].y * canvas.height); ctx.lineTo(pose[b].x * canvas.width, pose[b].y * canvas.height); ctx.stroke();
+      }
+    } else {
+      sendJson({ t: 'pose', ts: Date.now(), lm: null });
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+// ---------------------------------------------------------------- buttons and voice
+
+$('pause').onclick = () => cmd(paused ? 'resume' : 'pause');
+$('next').onclick = () => cmd('next');
+$('easier').onclick = () => cmd('easier');
+$('imok').onclick = () => cmd('ok', "I'm OK");
+
+const COMMANDS = [
+  [/\b(i'?m ok|i am ok|i'?m okay|i'?m fine|i am fine)\b/, 'ok'],
+  [/\b(dizzy|hurts?|pain|not feeling well|don'?t feel well|chest)\b/, 'unwell'],
+  [/\b(pause|stop|wait|rest|break|hold on)\b/, 'pause'],
+  [/\b(resume|continue|go on|start|ready|keep going)\b/, 'resume'],
+  [/\b(easier|too hard|fewer|less)\b/, 'easier'],
+  [/\b(harder|more|too easy)\b/, 'harder'],
+  [/\b(next|skip)\b/, 'next'],
+  [/\b(repeat|again|show me|how)\b/, 'repeat']
+];
+
+const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec, listening = false;
+$('voice').onclick = () => {
+  if (!Rec) { $('heard').textContent = 'Voice commands need Chrome or Safari.'; return; }
+  listening = !listening;
+  $('voice').setAttribute('aria-pressed', String(listening));
+  $('voice').textContent = listening ? '🎙 Listening: say “pause”, “next”, “easier”' : '🎙 Voice commands';
+  if (listening) startRec(); else rec?.stop();
+};
+function startRec() {
+  rec = new Rec();
+  rec.lang = 'en-US'; rec.continuous = true; rec.interimResults = false;
+  rec.onresult = e => {
+    const said = e.results[e.results.length - 1][0].transcript.trim().toLowerCase();
+    const hit = COMMANDS.find(([re]) => re.test(said));
+    if (hit) cmd(hit[1], said); else $('heard').textContent = `Heard: “${said}”`;
+  };
+  rec.onend = () => { if (listening) setTimeout(startRec, 250); };
+  rec.start();
+}
+</script>
+</body>
+</html>
