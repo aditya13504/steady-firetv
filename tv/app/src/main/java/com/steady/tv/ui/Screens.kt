@@ -1,6 +1,8 @@
 package com.steady.tv.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -294,24 +296,24 @@ fun SummaryScreen(app: AppController) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(if (s.stoppedEarly) "Good effort, ${s.profile.name}" else "Well done, ${s.profile.name}", style = T.display)
             Text(if (s.minutes == 1) "1 minute today" else "${s.minutes} minutes today", style = T.small)
-            Spacer(Modifier.height(6.dp))
-            for (r in s.results) {
-                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    val met = r.reps >= r.target || r.info.kind == Kind.TIMED_TEST
-                    Box(Modifier.size(28.dp).clip(CircleShape).background(if (met) C.sage else C.surfaceHi), contentAlignment = Alignment.Center) {
-                        Text(if (met) "✓" else "–", style = T.label.copy(color = C.night, fontSize = 18.sp))
+            // The strength check is the headline when there is one, so it leads.
+            if (s.chairStand != null && s.chairStandThreshold != null) ChairStandCard(s.chairStand, s.chairStandThreshold, s.profile.age)
+            Spacer(Modifier.height(4.dp))
+            for (r in s.results.filter { it.info.kind != Kind.TIMED_TEST }) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val met = r.reps >= r.target
+                    Box(Modifier.size(24.dp).clip(CircleShape).background(if (met) C.sage else C.surfaceHi), contentAlignment = Alignment.Center) {
+                        Text(if (met) "✓" else "–", style = T.label.copy(color = C.night, fontSize = 15.sp))
                     }
-                    Spacer(Modifier.width(14.dp))
-                    Text(r.info.title, style = T.body, modifier = Modifier.weight(1f))
+                    Spacer(Modifier.width(12.dp))
+                    Text(r.info.title, style = T.body.copy(fontSize = 20.sp), modifier = Modifier.weight(1f), maxLines = 1)
                     val value = when (r.info.kind) {
-                        Kind.HOLD -> "best ${r.bestHoldMs / 1000} s" + (r.quality?.let { ", steadiness $it" } ?: "")
-                        Kind.TIMED_TEST -> "${r.reps} stands"
-                        Kind.REPS -> "${r.reps} of ${r.target}"
+                        Kind.HOLD -> "best ${r.bestHoldMs / 1000} s" + (r.quality?.let { ", steady $it" } ?: "")
+                        else -> "${r.reps} of ${r.target}"
                     }
-                    Text(value, style = T.body.copy(color = C.muted))
+                    Text(value, style = T.body.copy(color = C.muted, fontSize = 20.sp), maxLines = 1)
                 }
             }
-            if (s.chairStand != null && s.chairStandThreshold != null) ChairStandCard(s.chairStand, s.chairStandThreshold, s.profile.age)
         }
         Panel(Modifier.weight(1f).fillMaxHeight(), color = C.surface) {
             Column(Modifier.padding(30.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -320,8 +322,8 @@ fun SummaryScreen(app: AppController) {
                 if (c == null) {
                     Text("Writing your summary…", style = T.title.copy(color = C.muted))
                 } else {
-                    Text(c.summary, style = T.title.copy(fontSize = 26.sp, lineHeight = 34.sp))
-                    if (c.next.isNotBlank()) Text("Next time: ${c.next}", style = T.body.copy(color = C.sun))
+                    Text(c.summary, style = T.heading.copy(lineHeight = 32.sp), maxLines = 6, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (c.next.isNotBlank()) Text("Next time: ${c.next}", style = T.body.copy(color = C.sun), maxLines = 2, overflow = TextOverflow.Ellipsis)
                     if (!s.coachFailed) Text("Shared with ${app.household?.familyName ?: "your family"}.", style = T.small)
                 }
                 Spacer(Modifier.weight(1f))
@@ -334,13 +336,17 @@ fun SummaryScreen(app: AppController) {
 @Composable
 private fun ChairStandCard(stands: Int, threshold: Int, age: Int) {
     val ok = stands >= threshold
-    Panel(Modifier.fillMaxWidth().padding(top = 10.dp), color = C.deep) {
-        Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Panel(Modifier.fillMaxWidth().padding(top = 6.dp), color = C.deep) {
+        Column(Modifier.padding(horizontal = 22.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("30-second chair stand: $stands", style = T.heading)
             val max = (threshold * 2).coerceAtLeast(stands + 2)
-            Box(Modifier.fillMaxWidth().height(18.dp).clip(RoundedCornerShape(9.dp)).background(C.surface)) {
-                Box(Modifier.fillMaxHeight().fillMaxWidth(stands / max.toFloat()).clip(RoundedCornerShape(9.dp)).background(if (ok) C.sage else C.sun))
-                Box(Modifier.fillMaxHeight().width(4.dp).align(Alignment.CenterStart).padding(start = 0.dp).background(Color.Transparent))
+            // Bar with a marker where the usual range for this age begins.
+            Canvas(Modifier.fillMaxWidth().height(22.dp)) {
+                val r = CornerRadius(size.height / 2)
+                drawRoundRect(C.surface, cornerRadius = r)
+                drawRoundRect(if (ok) C.sage else C.sun, size = androidx.compose.ui.geometry.Size(size.width * stands / max, size.height), cornerRadius = r)
+                val x = size.width * threshold / max
+                drawLine(C.cream, androidx.compose.ui.geometry.Offset(x, -6f), androidx.compose.ui.geometry.Offset(x, size.height + 6f), strokeWidth = 5f)
             }
             Text(
                 if (ok) "In the usual range for age $age ($threshold or more), by the CDC STEADI guide."

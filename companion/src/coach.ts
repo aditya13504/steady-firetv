@@ -174,7 +174,7 @@ export async function coachSession(p: Profile, s: Session, family?: { name: stri
     `${VOICE}
 Return JSON with exactly these keys:
 "spoken": 1-2 short sentences the TV says out loud right now,
-"summary": 2-3 sentences shown on screen: the biggest improvement with its numbers, then one thing to work on,
+"summary": 2 sentences, 35 words at most, shown on screen: the biggest improvement with its numbers, then one thing to work on,
 "next": one sentence about the next session (do not start with "Next time"),
 "family": one friendly text message sent TO ${recipient}, about ${p.name} in the third person. Do not address ${p.name}.
 Only talk about chair stands if today.chairStand exists. If it does, it is the headline: give the number of stands, the previous result (previousChairStand), and whether it is now in the usual range for their age (usual means at least chairStandNorm stands, per the CDC STEADI guide). Mention it in spoken, summary and family.`,
