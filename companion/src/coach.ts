@@ -86,7 +86,7 @@ function buildPlan(p: Profile, now: Date): Plan {
 // ------------------------------------------------------------------ language model
 
 const BASE_URL = () => (process.env.LLM_BASE_URL ?? 'https://api.groq.com/openai/v1').replace(/\/$/, '');
-const MODEL = () => process.env.LLM_MODEL ?? 'llama-3.3-70b-versatile';
+const MODEL = () => process.env.LLM_MODEL ?? 'openai/gpt-oss-120b';
 const KEY = () => process.env.LLM_API_KEY ?? process.env.GROQ_API_KEY ?? '';
 
 export function llmConfigured() {
@@ -102,7 +102,8 @@ async function chatJson(system: string, user: string): Promise<Record<string, st
       body: JSON.stringify({
         model: MODEL(),
         temperature: 0.5,
-        max_tokens: 500,
+        max_tokens: 1500,
+        ...(MODEL().startsWith('openai/gpt-oss') ? { reasoning_effort: 'low' } : {}),
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: system },
@@ -129,10 +130,31 @@ Celebrate real progress with the actual numbers. If something went badly, be gen
 
 export async function explainPlan(p: Profile, plan: Plan): Promise<string> {
   const out = await chatJson(
-    `${VOICE}\nReturn JSON: {"intro": "two sentences the TV says when the session starts"}.`,
+    `${VOICE}
+Return JSON: {"intro": "exactly two short sentences the TV says as the session starts. First: a warm hello by name. Second: the first change listed in reasons (they are ordered most important first), with its number."}`,
     JSON.stringify({ name: p.name, goal: p.goal, plan: plan.items.map(i => `${NAMES[i.id]}: ${i.target}`), reasons: plan.reasons })
   );
-  return out?.intro ?? `Good to see you, ${p.name}. ${plan.reasons[0] ?? "Let's get moving, one exercise at a time."}`;
+  return clean(out?.intro) ?? `Good to see you, ${p.name}. ${plan.reasons[0] ?? "Let's get moving, one exercise at a time."}`;
+}
+
+/** Plain punctuation only: TV fonts and speech engines stumble on non-breaking hyphens and the like. */
+function clean(s: string | undefined): string | undefined {
+  if (!s) return undefined;
+  return s
+    .replace(/[‐‑‒]/g, '-')
+    .replace(/\s*[–—]\s*/g, ', ')
+    .replace(/ /g, ' ')
+    .trim();
+}
+
+/** CDC STEADI 30-second chair stand: fewest stands that count as average, by age band [lo, hi, men, women]. */
+const CHAIR_NORMS: [number, number, number, number][] = [
+  [60, 64, 14, 12], [65, 69, 12, 11], [70, 74, 12, 10], [75, 79, 11, 10], [80, 84, 10, 9], [85, 89, 8, 8], [90, 94, 7, 4]
+];
+
+function chairNorm(p: Profile): number | null {
+  const row = CHAIR_NORMS.find(([lo, hi]) => p.age >= lo && p.age <= hi);
+  return row ? (p.sex === 'female' ? row[3] : row[2]) : null;
 }
 
 export interface CoachNote {
@@ -143,28 +165,40 @@ export interface CoachNote {
   source: 'llm' | 'rules';
 }
 
-export async function coachSession(p: Profile, s: Session): Promise<CoachNote> {
+export async function coachSession(p: Profile, s: Session, family?: { name: string; relation: string }): Promise<CoachNote> {
   const previous = p.history.slice(-4, -1);
   const fallback = rulesNote(p, s);
+  const lastTest = p.history.slice(0, -1).reverse().find(x => x.chairStand)?.chairStand?.stands ?? null;
+  const recipient = family ? `${family.name} (${p.name}'s ${family.relation})` : 'a family member';
   const out = await chatJson(
     `${VOICE}
 Return JSON with exactly these keys:
-"spoken": 1-2 sentences the TV says out loud right now,
-"summary": 2-3 sentences shown on screen: what improved (with numbers), what to work on,
-"next": one sentence about next session,
-"family": one friendly sentence a family member receives as a text, written in third person (use the person's name).`,
+"spoken": 1-2 short sentences the TV says out loud right now,
+"summary": 2-3 sentences shown on screen: the biggest improvement with its numbers, then one thing to work on,
+"next": one sentence about the next session (do not start with "Next time"),
+"family": one friendly text message sent TO ${recipient}, about ${p.name} in the third person. Do not address ${p.name}.
+If today has a chairStand result, it is the headline: give the number of stands, the previous result (previousChairStand), and whether it is now in the usual range for their age (usual means at least chairStandNorm stands, per the CDC STEADI guide). Mention it in spoken, summary and family.`,
     JSON.stringify({
       name: p.name,
       age: p.age,
+      sex: p.sex,
       goal: p.goal,
       today: s,
       previousSessions: previous,
+      previousChairStand: lastTest,
+      chairStandNorm: chairNorm(p),
       exerciseNames: NAMES,
-      notes: 'quality = % of clean reps (or steadiness 0-100 for balance). cues = how often each form cue fired. chairStand.belowAverage compares to CDC STEADI norms for age and sex.'
+      notes: 'quality = % of clean reps (or steadiness 0-100 for balance). cues = how often each form cue fired. skipped = exercise not finished.'
     })
   );
   if (!out?.spoken || !out?.summary) return fallback;
-  return { spoken: out.spoken, summary: out.summary, next: out.next ?? fallback.next, family: out.family ?? fallback.family, source: 'llm' };
+  return {
+    spoken: clean(out.spoken)!,
+    summary: clean(out.summary)!,
+    next: clean(out.next) ?? fallback.next,
+    family: clean(out.family) ?? fallback.family,
+    source: 'llm'
+  };
 }
 
 function rulesNote(p: Profile, s: Session): CoachNote {

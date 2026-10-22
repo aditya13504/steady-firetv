@@ -165,7 +165,7 @@ app.post('/api/sessions', async (req, res) => {
     const { profileId, session } = req.body as { profileId: string; session: Session };
     const p = store.profile(profileId);
     const s: Session = { ...session, at: session.at ?? new Date().toISOString() };
-    const note = await coachSession({ ...p, history: [...p.history, s] }, s);
+    const note = await coachSession({ ...p, history: [...p.history, s] }, s, store.data.family);
     s.coach = note.summary;
     p.history.push(s);
     pushFeed({ kind: 'summary', profileId, text: note.family });
@@ -222,5 +222,5 @@ app.get('/p/:code', (_req, res) => res.sendFile(resolve(here, '..', 'public', 'p
 app.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size, llm: llmConfigured() }));
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Steady companion on http://localhost:${PORT}  (phones: ${publicBase()})  coach: ${llmConfigured() ? `LLM ${process.env.LLM_MODEL ?? 'llama-3.3-70b-versatile'}` : 'rules only, set LLM_API_KEY for AI summaries'}`);
+  console.log(`Steady companion on http://localhost:${PORT}  (phones: ${publicBase()})  coach: ${llmConfigured() ? `LLM ${process.env.LLM_MODEL ?? 'openai/gpt-oss-120b'}` : 'rules only, set LLM_API_KEY for AI summaries'}`);
 });

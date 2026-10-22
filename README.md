@@ -76,7 +76,7 @@ Optional AI coach: create `.env` in the repo root (or `companion/`) with an Open
 ```
 LLM_API_KEY=gsk_...
 # LLM_BASE_URL=https://api.groq.com/openai/v1   (default)
-# LLM_MODEL=llama-3.3-70b-versatile             (default)
+# LLM_MODEL=openai/gpt-oss-120b                 (default)
 ```
 
 ### 2. Fire TV app
