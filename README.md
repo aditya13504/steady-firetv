@@ -6,7 +6,7 @@ Steady turns the TV into a patient exercise coach for fall prevention. Your phon
 
 Built for the **Fire TV track** of the Build, Ship, Shape Amazon Developer Hackathon.
 
-![Steady session screen](docs/images/session.png)
+![Steady session: coach, live mirror, rep counter and a form cue](docs/images/session.png)
 
 ## Why
 
@@ -27,6 +27,19 @@ Built for the **Fire TV track** of the Build, Ship, Shape Amazon Developer Hacka
 | **Clinically grounded progress** | The CDC STEADI 30-second chair stand test, scored against age and sex norms and repeated every two weeks. |
 | **Adapts to the household** | Each person has a profile and history. The home screen predicts who's exercising from the household's own habits ("Walter usually exercises around 6:30 PM"). The plan progresses by Otago-style rules: more reps after the target is met twice, fewer after a miss. An AI coach explains the plan and writes the end-of-session summary. |
 | **Family in the loop** | A family page (open it on a phone) receives session summaries and safety alerts as they happen. |
+
+## Screens
+
+| | |
+|---|---|
+| ![Home: household-aware greeting, today's adaptive plan, progress](docs/images/home.png) | ![Pairing: scan to use your phone as the camera](docs/images/pairing.png) |
+| **Home.** Predicts who's exercising, explains today's plan, shows progress against CDC norms. | **Pairing.** Scan once; video stays on the phone. |
+| ![Session: coach, mirror, counter and a form cue](docs/images/session.png) | ![One-leg balance: hold timer and steadiness](docs/images/balance.png) |
+| **Session.** Coach, live mirror, counter, one cue at a time. | **Balance.** Hold timer and a steadiness score. |
+| ![30-second chair stand test](docs/images/chair-stand.png) | ![Possible fall: are you OK?](docs/images/alert.png) |
+| **CDC 30-second chair stand.** Clock starts when you sit. | **Safety.** No answer, so the family is told. |
+| ![Summary with AI coach note and CDC norm](docs/images/summary.png) | ![Family updates on a phone](docs/images/family.png) |
+| **Summary.** AI coach note and the CDC norm marker. | **Family.** Summaries and alerts as they happen. |
 
 ## How it works
 

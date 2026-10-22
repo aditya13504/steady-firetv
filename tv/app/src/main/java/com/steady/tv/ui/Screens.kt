@@ -57,16 +57,20 @@ fun PairScreen(app: AppController) {
             if (p.phoneUrl != null) QrCode(p.phoneUrl, Modifier.fillMaxSize())
             else Text(if (p.serverUp) "Getting a code…" else "Companion not running", style = T.heading.copy(color = C.night), textAlign = TextAlign.Center)
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Your phone is the camera", style = T.display.copy(fontSize = 40.sp))
-            Step("1", "Scan this code with your phone's camera.")
-            Step("2", "Stand the phone 2 to 3 meters away, so it sees you from head to feet.")
+            Step("1", "Scan the code with your phone's camera.")
+            Step("2", "Stand the phone 2 to 3 meters away, so it sees you head to feet.")
             Step("3", "Video stays on your phone. Only joint positions reach the TV.")
             if (p.code != null) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Text("Or open ${p.phoneUrl?.substringBefore("/p/")?.removePrefix("http://")} and enter", style = T.small)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("Code", style = T.small)
                     Text(p.code, style = T.display.copy(color = C.sun, fontSize = 40.sp, letterSpacing = 6.sp))
                 }
+                Text(
+                    "No QR scanner? Open ${p.phoneUrl?.substringBefore("/p/")?.removePrefix("http://")?.removePrefix("https://")} and enter the code.",
+                    style = T.small, maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
             }
             when {
                 p.phoneConnected -> Pill("Phone linked. Starting…", C.sage)
@@ -85,7 +89,7 @@ fun PairScreen(app: AppController) {
 private fun Step(n: String, text: String) {
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Top) {
         Box(Modifier.size(36.dp).clip(CircleShape).background(C.surfaceHi), contentAlignment = Alignment.Center) { Text(n, style = T.label) }
-        Text(text, style = T.body, modifier = Modifier.padding(top = 2.dp))
+        Text(text, style = T.body.copy(fontSize = 21.sp), modifier = Modifier.padding(top = 2.dp))
     }
 }
 
@@ -322,8 +326,8 @@ fun SummaryScreen(app: AppController) {
                 if (c == null) {
                     Text("Writing your summary…", style = T.title.copy(color = C.muted))
                 } else {
-                    Text(c.summary, style = T.heading.copy(lineHeight = 32.sp), maxLines = 6, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                    if (c.next.isNotBlank()) Text("Next time: ${c.next}", style = T.body.copy(color = C.sun), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(c.summary, style = T.heading.copy(lineHeight = 32.sp), maxLines = 6, overflow = TextOverflow.Ellipsis)
+                    if (c.next.isNotBlank()) Text("Next time: ${c.next}", style = T.body.copy(color = C.sun), maxLines = 3, overflow = TextOverflow.Ellipsis)
                     if (!s.coachFailed) Text("Shared with ${app.household?.familyName ?: "your family"}.", style = T.small)
                 }
                 Spacer(Modifier.weight(1f))
