@@ -1,0 +1,15 @@
+# Android/Gradle
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+# Node
+node_modules/
+.env
+companion/data/household.json
+*.log
+.DS_Store
