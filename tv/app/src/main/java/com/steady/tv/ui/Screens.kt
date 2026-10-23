@@ -62,27 +62,28 @@ fun PairScreen(app: AppController) {
     LaunchedEffect(Unit) { runCatching { demo.requestFocus() } }
     Box(Modifier.fillMaxSize().background(C.bg)) {
         AmbientLight(Modifier.fillMaxSize(), strength = 0.16f)
-        Row(Modifier.fillMaxSize().padding(horizontal = 64.dp, vertical = 40.dp), horizontalArrangement = Arrangement.spacedBy(48.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(310.dp).appear(0).shadow(30.dp, RoundedCornerShape(26.dp), spotColor = C.orange).clip(RoundedCornerShape(26.dp)).background(C.white).padding(24.dp), contentAlignment = Alignment.Center) {
+        Row(Modifier.fillMaxSize().padding(horizontal = 56.dp, vertical = 28.dp), horizontalArrangement = Arrangement.spacedBy(44.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(290.dp).appear(0).shadow(30.dp, RoundedCornerShape(26.dp), spotColor = C.orange).clip(RoundedCornerShape(26.dp)).background(C.white).padding(24.dp), contentAlignment = Alignment.Center) {
                 if (p.phoneUrl != null) {
                     QrCode(p.phoneUrl, Modifier.fillMaxSize())
                     if (!p.phoneConnected) ScanLine(Modifier.fillMaxSize())
                     if (p.phoneConnected) CheckDraw(Modifier.size(140.dp), key = "linked")
                 } else Text(if (p.serverUp) "Getting a code…" else "Steady server unreachable", style = T.heading.copy(color = C.bg), textAlign = TextAlign.Center)
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Your phone is the camera", style = T.display, modifier = Modifier.appear(1))
-                Step("1", "Scan the code with your phone's camera.", 2)
-                Step("2", "Stand the phone 2 to 3 meters away, so it sees you head to feet.", 3)
-                Step("3", "Video stays on your phone. Only joint positions reach the TV.", 4)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Your phone is the camera", style = T.display.copy(fontSize = 36.sp), maxLines = 1, modifier = Modifier.appear(1))
+                Step("1", "Scan the code with your phone.", 2)
+                Step("2", "Prop it 2 to 3 meters away, facing you.", 3)
+                Step("3", "Video stays on the phone. Only joint positions reach the TV.", 4)
                 if (p.code != null) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.appear(5)) {
                         Text("Code", style = T.small)
                         Text(p.code, style = T.display.copy(color = C.orange, letterSpacing = 8.sp))
                     }
+                    // The address goes on its own line: a hosted URL is too long to share a line with the instruction.
                     Text(
-                        "No QR scanner? Open ${p.publicBase?.removePrefix("http://")?.removePrefix("https://")} and enter the code.",
-                        style = T.small, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.appear(6)
+                        "No QR scanner? Open this address and enter the code:\n${p.publicBase?.removePrefix("http://")?.removePrefix("https://")}",
+                        style = T.small, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.appear(6)
                     )
                 }
                 Row(Modifier.appear(7)) {

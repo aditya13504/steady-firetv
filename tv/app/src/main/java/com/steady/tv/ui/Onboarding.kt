@@ -79,9 +79,9 @@ fun WelcomeScreen(app: AppController) {
     Box(Modifier.fillMaxSize().background(C.bg)) {
         AmbientLight(Modifier.fillMaxSize())
         Row(Modifier.fillMaxSize().padding(horizontal = 72.dp, vertical = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1.2f), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            Column(Modifier.weight(1.4f), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 Wordmark(Modifier.appear(0))
-                Text("Stay steady on your feet.", style = T.hero, modifier = Modifier.appear(1))
+                Text("Stay steady\non your feet.", style = T.hero, modifier = Modifier.appear(1))
                 Text(
                     "A coach on your TV for the strength and balance exercises that prevent falls. Your phone is the camera. Your video never leaves it.",
                     style = T.body.copy(color = C.muted), modifier = Modifier.appear(2)
@@ -93,7 +93,7 @@ fun WelcomeScreen(app: AppController) {
                 }
                 Text("Takes a minute. Everything is stored on this TV.", style = T.small, modifier = Modifier.appear(4))
             }
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            Box(Modifier.weight(0.8f), contentAlignment = Alignment.Center) {
                 CoachFigure(com.steady.tv.pose.ExerciseId.ONE_LEG_STAND, Modifier.size(420.dp).appear(2))
             }
         }
