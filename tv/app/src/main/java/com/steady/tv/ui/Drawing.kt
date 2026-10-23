@@ -100,8 +100,8 @@ fun MirrorSkeleton(frame: PoseFrame?, modifier: Modifier = Modifier, dim: Boolea
     Canvas(modifier) {
         val f = frame ?: return@Canvas
         val fit = Fit(size, f.aspect, mirror = true, pad = 0.02f)
-        val color = if (dim) C.muted else C.sun
-        bones({ f[it] }, fit, color, C.cream, fit.unit * 0.022f)
+        val color = if (dim) C.muted else C.blue
+        bones({ f[it] }, fit, color, C.white, fit.unit * 0.022f)
     }
 }
 

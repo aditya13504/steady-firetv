@@ -1,27 +1,12 @@
 /**
- * The coach. Progression is decided by plain rules modelled on how the Otago programme progresses
- * (add reps when the target is met twice, ease off when it is missed, re-test strength every two
- * weeks). The language model only explains the plan and the session in warm, plain words, and the
- * app works without it.
+ * The coach's voice. The TV decides the plan with simple progression rules and keeps all history;
+ * this module only turns a plan or a finished session into warm, plain words with a language model.
+ * It is stateless: nothing a request contains is stored.
  */
-import type { ExerciseId, ExerciseResult, Profile, Session } from './household.js';
 
-export interface PlanItem {
-  id: ExerciseId;
-  target: number;
-}
+export type ExerciseId = 'MARCH' | 'SIT_TO_STAND' | 'HEEL_RAISE' | 'SIDE_LEG_RAISE' | 'ONE_LEG_STAND' | 'CHAIR_STAND_TEST';
 
-export interface Plan {
-  profileId: string;
-  items: PlanItem[];
-  reasons: string[];
-  why: string;
-  minutes: number;
-}
-
-const ORDER: ExerciseId[] = ['MARCH', 'SIT_TO_STAND', 'HEEL_RAISE', 'SIDE_LEG_RAISE', 'ONE_LEG_STAND'];
-const DEFAULTS: Record<ExerciseId, number> = { MARCH: 20, SIT_TO_STAND: 10, HEEL_RAISE: 10, SIDE_LEG_RAISE: 10, ONE_LEG_STAND: 2, CHAIR_STAND_TEST: 30 };
-const NAMES: Record<ExerciseId, string> = {
+export const NAMES: Record<ExerciseId, string> = {
   MARCH: 'standing march',
   SIT_TO_STAND: 'sit to stand',
   HEEL_RAISE: 'heel raises',
@@ -30,63 +15,32 @@ const NAMES: Record<ExerciseId, string> = {
   CHAIR_STAND_TEST: '30-second chair stand'
 };
 
-function lastResults(p: Profile, id: ExerciseId, n: number): ExerciseResult[] {
-  return p.history
-    .slice(-n)
-    .map(s => s.results.find(r => r.id === id))
-    .filter((r): r is ExerciseResult => Boolean(r));
+export interface IntroRequest {
+  name: string;
+  goal?: string;
+  plan: { id: ExerciseId; target: number }[];
+  reasons: string[];
 }
 
-export function planFor(p: Profile, now = new Date()): Plan {
-  const plan = buildPlan(p, now);
-  // Lead with what matters most for falls: leg strength, balance, the strength check.
-  const rank = (r: string) => (/sit to stand|balance|chair stand/.test(r) ? 0 : 1);
-  plan.reasons.sort((a, b) => rank(a) - rank(b));
-  plan.why = plan.reasons.join(' ');
-  return plan;
+export interface SummaryRequest {
+  profile: { name: string; age: number; sex: 'female' | 'male'; goal?: string };
+  today: Record<string, unknown> & { chairStand?: number };
+  previousSessions?: unknown[];
+  previousChairStand?: number;
+  chairStandNorm?: number;
+  family?: { name: string; relation: string };
 }
 
-function buildPlan(p: Profile, now: Date): Plan {
-  const reasons: string[] = [];
-  const items: PlanItem[] = ORDER.map(id => {
-    const recent = lastResults(p, id, 2);
-    const last = recent[recent.length - 1];
-    let target = last?.target ?? DEFAULTS[id];
-    if (id === 'ONE_LEG_STAND') return { id, target: 2 };
-    if (recent.length === 2 && recent.every(r => r.reps >= r.target)) {
-      const step = id === 'MARCH' ? 4 : 2;
-      target += step;
-      reasons.push(`You reached ${last.target} ${NAMES[id]} twice in a row, so today it's ${target}.`);
-    } else if (last && last.reps < last.target * 0.7) {
-      target = Math.max(4, target - 2);
-      reasons.push(`Let's take ${NAMES[id]} down to ${target} today and build back up.`);
-    }
-    return { id, target };
-  });
-
-  const holds = lastResults(p, 'ONE_LEG_STAND', 6).map(r => (r.bestHoldMs ?? 0) / 1000);
-  if (holds.length >= 2 && holds[holds.length - 1] > holds[0]) {
-    reasons.push(`Your one-leg balance went from ${Math.round(holds[0])} to ${Math.round(holds[holds.length - 1])} seconds. Today we aim for 10 on each leg.`);
-  }
-
-  const lastTest = [...p.history].reverse().find(s => s.chairStand);
-  const daysSince = lastTest ? (now.getTime() - new Date(lastTest.at).getTime()) / 86_400_000 : Infinity;
-  if (daysSince >= 13) {
-    items.push({ id: 'CHAIR_STAND_TEST', target: 30 });
-    reasons.push(
-      lastTest
-        ? `It's been ${Math.round(daysSince)} days since your chair stand check (${lastTest.chairStand!.stands} stands), so we'll repeat it at the end.`
-        : "We'll finish with the 30-second chair stand check, so we can see your progress."
-    );
-  }
-  const minutes = 10 + items.length * 2;
-  return { profileId: p.id, items, reasons, why: reasons.join(' '), minutes };
+export interface CoachNote {
+  spoken: string;
+  summary: string;
+  next: string;
+  family: string;
+  source: 'llm' | 'none';
 }
-
-// ------------------------------------------------------------------ language model
 
 const BASE_URL = () => (process.env.LLM_BASE_URL ?? 'https://api.groq.com/openai/v1').replace(/\/$/, '');
-const MODEL = () => process.env.LLM_MODEL ?? 'openai/gpt-oss-120b';
+export const MODEL = () => process.env.LLM_MODEL ?? 'openai/gpt-oss-120b';
 const KEY = () => process.env.LLM_API_KEY ?? process.env.GROQ_API_KEY ?? '';
 
 export function llmConfigured() {
@@ -124,21 +78,8 @@ async function chatJson(system: string, user: string): Promise<Record<string, st
   }
 }
 
-const VOICE = `You are Steady, a warm, encouraging exercise coach on a TV for older adults doing a fall-prevention strength and balance programme.
-Speak like a kind physiotherapist: short sentences, plain words, specific numbers, never patronising, never medical advice or diagnosis.
-Celebrate real progress with the actual numbers. If something went badly, be gentle and practical.`;
-
-export async function explainPlan(p: Profile, plan: Plan): Promise<string> {
-  const out = await chatJson(
-    `${VOICE}
-Return JSON: {"intro": "exactly two short sentences the TV says as the session starts. First: a warm hello by name. Second: the first change listed in reasons (they are ordered most important first), with its number."}`,
-    JSON.stringify({ name: p.name, goal: p.goal, plan: plan.items.map(i => `${NAMES[i.id]}: ${i.target}`), reasons: plan.reasons })
-  );
-  return clean(out?.intro) ?? `Good to see you, ${p.name}. ${plan.reasons[0] ?? "Let's get moving, one exercise at a time."}`;
-}
-
 /** Plain punctuation only: TV fonts and speech engines stumble on non-breaking hyphens and the like. */
-function clean(s: string | undefined): string | undefined {
+export function clean(s: string | undefined): string | undefined {
   if (!s) return undefined;
   return s
     .replace(/[‐‑‒]/g, '-')
@@ -147,29 +88,23 @@ function clean(s: string | undefined): string | undefined {
     .trim();
 }
 
-/** CDC STEADI 30-second chair stand: fewest stands that count as average, by age band [lo, hi, men, women]. */
-const CHAIR_NORMS: [number, number, number, number][] = [
-  [60, 64, 14, 12], [65, 69, 12, 11], [70, 74, 12, 10], [75, 79, 11, 10], [80, 84, 10, 9], [85, 89, 8, 8], [90, 94, 7, 4]
-];
+const VOICE = `You are Steady, a warm, encouraging exercise coach on a TV for older adults doing a fall-prevention strength and balance programme.
+Speak like a kind physiotherapist: short sentences, plain words, specific numbers, never patronising, never medical advice or diagnosis.
+Celebrate real progress with the actual numbers. If something went badly, be gentle and practical.`;
 
-function chairNorm(p: Profile): number | null {
-  const row = CHAIR_NORMS.find(([lo, hi]) => p.age >= lo && p.age <= hi);
-  return row ? (p.sex === 'female' ? row[3] : row[2]) : null;
+export async function intro(req: IntroRequest): Promise<string | null> {
+  const out = await chatJson(
+    `${VOICE}
+Return JSON: {"intro": "exactly two short sentences the TV says as the session starts. First: a warm hello by name. Second: the first change listed in reasons (they are ordered most important first), with its number."}`,
+    JSON.stringify({ name: req.name, goal: req.goal, plan: req.plan.map(i => `${NAMES[i.id] ?? i.id}: ${i.target}`), reasons: req.reasons })
+  );
+  return clean(out?.intro) ?? null;
 }
 
-export interface CoachNote {
-  spoken: string;
-  summary: string;
-  next: string;
-  family: string;
-  source: 'llm' | 'rules';
-}
-
-export async function coachSession(p: Profile, s: Session, family?: { name: string; relation: string }): Promise<CoachNote> {
-  const previous = p.history.slice(-4, -1);
-  const fallback = rulesNote(p, s);
-  const lastTest = p.history.slice(0, -1).reverse().find(x => x.chairStand)?.chairStand?.stands ?? null;
-  const recipient = family ? `${family.name} (${p.name}'s ${family.relation})` : 'a family member';
+export async function summary(req: SummaryRequest): Promise<CoachNote | null> {
+  const p = req.profile;
+  const recipient = req.family ? `${req.family.name} (${p.name}'s ${req.family.relation})` : 'a family member';
+  const hasTest = typeof req.today.chairStand === 'number';
   const out = await chatJson(
     `${VOICE}
 Return JSON with exactly these keys:
@@ -183,36 +118,40 @@ Only talk about chair stands if today.chairStand exists. If it does, it is the h
       age: p.age,
       sex: p.sex,
       goal: p.goal,
-      today: s,
-      previousSessions: previous,
-      ...(s.chairStand ? { previousChairStand: lastTest, chairStandNorm: chairNorm(p) } : {}),
+      today: req.today,
+      previousSessions: req.previousSessions ?? [],
+      ...(hasTest ? { previousChairStand: req.previousChairStand ?? null, chairStandNorm: req.chairStandNorm ?? null } : {}),
       exerciseNames: NAMES,
       notes: 'quality = % of clean reps (or steadiness 0-100 for balance). cues = how often each form cue fired. skipped = exercise not finished.'
     })
   );
-  if (!out?.spoken || !out?.summary) return fallback;
+  if (!out?.spoken || !out?.summary) return null;
   return {
     spoken: clean(out.spoken)!,
     summary: clean(out.summary)!,
-    next: clean(out.next) ?? fallback.next,
-    family: clean(out.family) ?? fallback.family,
+    next: clean(out.next) ?? '',
+    family: clean(out.family) ?? '',
     source: 'llm'
   };
 }
 
-function rulesNote(p: Profile, s: Session): CoachNote {
-  const sts = s.results.find(r => r.id === 'SIT_TO_STAND');
-  const bal = s.results.find(r => r.id === 'ONE_LEG_STAND');
-  const prevSts = lastResults(p, 'SIT_TO_STAND', 2)[0];
-  const parts: string[] = [];
-  if (sts) parts.push(`${sts.reps} sit to stand${sts.reps === 1 ? '' : 's'}${prevSts && sts.reps > prevSts.reps ? `, up from ${prevSts.reps}` : ''}.`);
-  if (bal?.bestHoldMs) parts.push(`Best balance hold: ${Math.round(bal.bestHoldMs / 1000)} seconds.`);
-  if (s.chairStand) parts.push(`Chair stand check: ${s.chairStand.stands} stands${s.chairStand.belowAverage ? ', still below the usual range for your age, so keep going.' : ', in the healthy range for your age.'}`);
-  return {
-    spoken: `Well done, ${p.name}. That's another session in the bank.`,
-    summary: parts.join(' ') || 'Session complete.',
-    next: 'We add a little more where you found it easy.',
-    family: `${p.name} finished a ${Math.round(s.durationSec / 60)}-minute strength and balance session on Steady today.`,
-    source: 'rules'
-  };
+// ------------------------------------------------------------------ request validation
+
+const IDS = new Set(Object.keys(NAMES));
+const str = (v: unknown, max: number) => typeof v === 'string' && v.length <= max;
+
+export function validIntro(b: unknown): b is IntroRequest {
+  const r = b as IntroRequest;
+  return (
+    !!r && str(r.name, 60) && (r.goal === undefined || str(r.goal, 300)) && Array.isArray(r.plan) && r.plan.length <= 10 &&
+    r.plan.every(i => IDS.has(i?.id) && Number.isFinite(i?.target)) && Array.isArray(r.reasons) && r.reasons.length <= 10 && r.reasons.every(x => str(x, 400))
+  );
+}
+
+export function validSummary(b: unknown): b is SummaryRequest {
+  const r = b as SummaryRequest;
+  return (
+    !!r && !!r.profile && str(r.profile.name, 60) && Number.isFinite(r.profile.age) && (r.profile.sex === 'female' || r.profile.sex === 'male') &&
+    typeof r.today === 'object' && r.today !== null && (r.previousSessions === undefined || (Array.isArray(r.previousSessions) && r.previousSessions.length <= 5))
+  );
 }

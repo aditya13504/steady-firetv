@@ -13,10 +13,12 @@ android {
         // Fire OS 6 (API 25) and newer: every Fire TV Stick still getting updates.
         minSdk = 25
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
-        // The companion/relay server. 10.0.2.2 is the host machine as seen from the Android emulator.
-        buildConfigField("String", "DEFAULT_SERVER", "\"${project.findProperty("steadyServer") ?: "http://10.0.2.2:8787"}\"")
+        versionCode = 2
+        versionName = "1.1"
+        // Steady Cloud (the hosted companion) when configured; otherwise the emulator's host machine (10.0.2.2).
+        val cloud = (project.findProperty("steadyCloud") as String?) ?: ""
+        buildConfigField("String", "CLOUD_SERVER", "\"$cloud\"")
+        buildConfigField("String", "DEFAULT_SERVER", "\"${project.findProperty("steadyServer") ?: cloud.ifBlank { "http://10.0.2.2:8787" }}\"")
     }
 
     buildTypes {

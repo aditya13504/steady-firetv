@@ -13,14 +13,12 @@
   "description": "Steady companion: phone camera pairing, pose relay and AI coach for the Steady Fire TV app",
   "dependencies": {
     "express": "^5.3.0",
-    "qrcode": "^1.5.4",
     "tsx": "^4.23.15",
     "ws": "^8.22.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.5",
-    "@types/qrcode": "^1.5.6",
     "@types/ws": "^8.18.2",
     "typescript": "^7.0.2"
   }

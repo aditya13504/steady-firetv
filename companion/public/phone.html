@@ -3,23 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#14213d">
+<meta name="theme-color" content="#232f3e">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%2314213d%27/%3E%3Ccircle cx=%2732%27 cy=%2718%27 r=%277%27 fill=%27%23f2c14e%27/%3E%3Cpath d=%27M32 28v22M20 30l12 2 12-2M14 52h36%27 stroke=%27%23f7f3ea%27 stroke-width=%275%27 stroke-linecap=%27round%27 fill=%27none%27/%3E%3C/svg%3E">
 <title>Steady camera</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
-  :root { --night: #14213d; --deep: #0e1830; --surface: #1d2f57; --cream: #f7f3ea; --muted: #a8b3c9; --sun: #f2c14e; --sage: #7fc8a9; --coral: #f28b82; }
+  :root { --night: #0f1111; --deep: #131a22; --surface: #232f3e; --surface2: #37475a; --cream: #ffffff; --muted: #aab7b8; --sun: #ffd814; --orange: #ff9900; --sage: #3fbf8f; --coral: #cc0c39; --blue: #00a8e1; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--night); color: var(--cream); font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; }
+  html, body { margin: 0; height: 100%; background: var(--night); color: var(--cream); font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
   body { display: flex; flex-direction: column; min-height: 100dvh; padding: env(safe-area-inset-top) 16px calc(16px + env(safe-area-inset-bottom)); }
-  header { display: flex; justify-content: space-between; align-items: center; padding: 14px 2px 10px; gap: 12px; }
-  header strong { font-size: 22px; }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; gap: 12px; margin: 0 -16px 14px; background: var(--surface); border-bottom: 3px solid var(--orange); }
+  header strong { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
   .status { font-size: 15px; color: var(--muted); display: flex; align-items: center; gap: 8px; text-align: right; }
   .status::before { content: ''; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
   .status[data-ok="true"]::before { background: var(--sage); }
   .status[data-ok="false"]::before { background: var(--coral); }
-  .stage { position: relative; border-radius: 20px; overflow: hidden; background: var(--deep); aspect-ratio: 3 / 4; max-height: 56dvh; margin: 0 auto; width: 100%; }
+  .stage { position: relative; border-radius: 18px; border: 1px solid var(--surface2); overflow: hidden; background: var(--deep); aspect-ratio: 3 / 4; max-height: 56dvh; margin: 0 auto; width: 100%; }
   video, canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
   .overlay { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; padding: 24px; gap: 14px; }
   .overlay p { margin: 0; font-size: 18px; color: var(--muted); }
@@ -28,12 +28,13 @@
   .now b { display: block; font-size: 20px; }
   .now span { color: var(--muted); font-size: 16px; }
   .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: auto; }
-  button { font: inherit; border: 0; border-radius: 16px; padding: 16px 8px; font-size: 18px; font-weight: 700; background: var(--surface); color: var(--cream); }
+  button { font: inherit; border: 0; border-radius: 999px; padding: 16px 8px; font-size: 18px; font-weight: 700; background: var(--surface2); color: var(--cream); transition: transform .12s; }
   button:active { transform: scale(0.98); }
-  button.primary { background: var(--sun); color: #2b1e00; }
+  button.primary { background: var(--sun); color: #0f1111; border: 1px solid #fcd200; }
   button.voice { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 10px; }
-  button.voice[aria-pressed="true"] { background: var(--sage); color: #0e2a1f; }
-  button.ok { grid-column: 1 / -1; background: var(--coral); color: #2a0b08; font-size: 22px; padding: 22px; }
+  button.voice[aria-pressed="true"] { background: var(--blue); color: #0f1111; }
+  button.ok { grid-column: 1 / -1; background: var(--coral); color: #fff; font-size: 22px; padding: 22px; animation: beat 1.2s ease-in-out infinite; }
+  @keyframes beat { 50% { transform: scale(1.03); } }
   .heard { min-height: 22px; font-size: 15px; color: var(--muted); margin: 8px 2px 0; }
   [hidden] { display: none !important; }
 </style>
@@ -145,7 +146,7 @@ function loop(now) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (pose) {
       sendJson({ t: 'pose', ts: Date.now(), ar: +(video.videoWidth / video.videoHeight).toFixed(3), lm: pose.map(p => [+p.x.toFixed(4), +p.y.toFixed(4), +(p.visibility ?? 1).toFixed(2)]) });
-      ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+      ctx.strokeStyle = '#00a8e1'; ctx.lineWidth = 6; ctx.lineCap = 'round';
       for (const [a, b] of BONES) {
         ctx.beginPath(); ctx.moveTo(pose[a].x * canvas.width, pose[a].y * canvas.height); ctx.lineTo(pose[b].x * canvas.width, pose[b].y * canvas.height); ctx.stroke();
       }

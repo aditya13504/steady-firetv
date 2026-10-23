@@ -2,7 +2,13 @@ package com.steady.tv.net
 
 import android.os.Handler
 import android.os.Looper
-import com.steady.tv.pose.ExerciseId
+import com.steady.tv.data.CoachNote
+import com.steady.tv.data.Household
+import com.steady.tv.data.HouseholdJson
+import com.steady.tv.data.Person
+import com.steady.tv.data.Plan
+import com.steady.tv.data.SessionRecord
+import com.steady.tv.pose.ChairStandNorms
 import com.steady.tv.pose.Pt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,27 +23,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-data class HistoryPoint(val at: String, val sitToStand: Int?, val balanceSec: Int, val chairStand: Int?)
-
-data class Profile(
-    val id: String,
-    val name: String,
-    val age: Int,
-    val female: Boolean,
-    val goal: String,
-    val sessions: Int,
-    val streakDays: Int,
-    val history: List<HistoryPoint>
-)
-
-data class Household(val name: String, val familyName: String, val familyRelation: String, val likelyId: String, val likelyReason: String, val profiles: List<Profile>, val llm: Boolean, val greeting: String? = null)
-
-data class PlanItem(val id: ExerciseId, val target: Int)
-
-data class Plan(val items: List<PlanItem>, val why: String, val intro: String, val minutes: Int)
-
-data class CoachNote(val spoken: String, val summary: String, val next: String, val family: String, val source: String)
-
 /** Everything the TV hears from the phone, via the companion relay. */
 sealed interface PhoneEvent {
     data class Code(val code: String, val phoneUrl: String, val localUrl: String, val phoneConnected: Boolean) : PhoneEvent
@@ -47,12 +32,14 @@ sealed interface PhoneEvent {
     data class Link(val up: Boolean) : PhoneEvent
 }
 
+private val JSON_TYPE = "application/json".toMediaType()
+
 /**
- * Talks to the Steady companion server: a WebSocket for pairing and live pose points, and a small
- * REST API for household history, plans and the coach.
+ * Talks to the Steady companion server: a WebSocket for pairing and live pose points, and two
+ * stateless coaching calls. The server stores nothing about the household.
  */
 class CompanionClient(var baseUrl: String, private val onEvent: (PhoneEvent) -> Unit) {
-    private val http = OkHttpClient.Builder().connectTimeout(4, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).pingInterval(20, TimeUnit.SECONDS).build()
+    private val http = OkHttpClient.Builder().connectTimeout(6, TimeUnit.SECONDS).readTimeout(25, TimeUnit.SECONDS).pingInterval(20, TimeUnit.SECONDS).build()
     private val main = Handler(Looper.getMainLooper())
     private var ws: WebSocket? = null
     private var code: String? = null
@@ -84,6 +71,14 @@ class CompanionClient(var baseUrl: String, private val onEvent: (PhoneEvent) -> 
         })
     }
 
+    /** Point at a different companion (Settings). Drops the pairing code; the new server issues one. */
+    fun switchServer(url: String) {
+        close()
+        baseUrl = url.trimEnd('/')
+        code = null
+        connect()
+    }
+
     private fun retry() {
         post(PhoneEvent.Link(false))
         if (!closed) main.postDelayed({ if (!closed) connect() }, 3_000)
@@ -109,60 +104,57 @@ class CompanionClient(var baseUrl: String, private val onEvent: (PhoneEvent) -> 
     fun close() {
         closed = true
         ws?.close(1000, "bye")
+        ws = null
     }
 
-    // ------------------------------------------------------------------ REST
-
-    private suspend fun get(path: String): JSONObject = withContext(Dispatchers.IO) {
-        http.newCall(Request.Builder().url(baseUrl + path).build()).execute().use { r ->
-            check(r.isSuccessful) { "HTTP ${r.code}" }
-            JSONObject(r.body!!.string())
-        }
-    }
+    // ------------------------------------------------------------------ stateless coaching
 
     private suspend fun postJson(path: String, body: JSONObject): JSONObject = withContext(Dispatchers.IO) {
-        val req = Request.Builder().url(baseUrl + path).post(body.toString().toRequestBody("application/json".toMediaType())).build()
+        val req = Request.Builder().url(baseUrl + path).post(body.toString().toRequestBody(JSON_TYPE)).build()
         http.newCall(req).execute().use { r ->
             check(r.isSuccessful) { "HTTP ${r.code}" }
             JSONObject(r.body!!.string())
         }
     }
 
-    suspend fun household(): Household {
-        val j = get("/api/household")
-        val profiles = j.getJSONArray("profiles").let { a ->
-            List(a.length()) { i ->
-                val p = a.getJSONObject(i)
-                val h = p.getJSONArray("history")
-                Profile(
-                    id = p.getString("id"), name = p.getString("name"), age = p.getInt("age"), female = p.getString("sex") == "female",
-                    goal = p.getString("goal"), sessions = p.getInt("sessions"), streakDays = p.getInt("streakDays"),
-                    history = List(h.length()) { k ->
-                        val s = h.getJSONObject(k)
-                        HistoryPoint(s.getString("at"), s.optInt("sitToStand").takeIf { !s.isNull("sitToStand") }, s.optInt("balanceSec"), s.optInt("chairStand").takeIf { !s.isNull("chairStand") })
-                    }
-                )
-            }
+    /** Two warm sentences that open today's session, or null when the coach model is unavailable. */
+    suspend fun coachIntro(p: Person, plan: Plan): String? = runCatching {
+        val body = JSONObject().put("name", p.name).put("goal", p.goal).put("reasons", JSONArray(plan.reasons))
+            .put("plan", JSONArray(plan.items.map { JSONObject().put("id", it.id.name).put("target", it.target) }))
+        postJson("/api/coach/intro", body).optString("intro").ifBlank { null }
+    }.getOrNull()
+
+    /** The coach's words about a finished session, or null when the model is unavailable. */
+    suspend fun coachSummary(p: Person, today: SessionRecord, h: Household): CoachNote? = runCatching {
+        val previous = p.history.dropLast(1)
+        val body = JSONObject()
+            .put("profile", JSONObject().put("name", p.name).put("age", p.age).put("sex", if (p.female) "female" else "male").put("goal", p.goal))
+            .put("today", HouseholdJson.sessionJson(today))
+            .put("previousSessions", JSONArray(previous.takeLast(3).map { HouseholdJson.sessionJson(it) }))
+            .put("family", JSONObject().put("name", h.familyName.ifBlank { "the family" }).put("relation", h.familyRelation.ifBlank { "family member" }))
+        if (today.chairStand != null) {
+            previous.lastOrNull { it.chairStand != null }?.chairStand?.let { body.put("previousChairStand", it) }
+            ChairStandNorms.threshold(p.age, p.female)?.let { body.put("chairStandNorm", it) }
         }
-        val likely = j.getJSONObject("likely")
-        val fam = j.getJSONObject("family")
-        return Household(j.getString("name"), fam.getString("name"), fam.getString("relation"), likely.getString("id"), likely.optString("reason"), profiles, j.optBoolean("llm"), j.optString("greeting").ifBlank { null })
-    }
+        val c = postJson("/api/coach/summary", body)
+        if (c.optString("source") != "llm") null
+        else CoachNote(c.getString("spoken"), c.getString("summary"), c.optString("next"), c.optString("family"), "llm")
+    }.getOrNull()
+}
 
-    suspend fun plan(profileId: String): Plan {
-        val j = get("/api/plan/$profileId")
-        val items = j.getJSONArray("items")
-        return Plan(
-            items = List(items.length()) { i -> items.getJSONObject(i).let { PlanItem(ExerciseId.valueOf(it.getString("id")), it.getInt("target")) } },
-            why = j.optString("why"), intro = j.optString("intro"), minutes = j.optInt("minutes", 15)
-        )
-    }
+/**
+ * Real push notifications to the family through ntfy (https://ntfy.sh), an open-source push service.
+ * The family subscribes to the household's secret topic in the ntfy app or browser; no account needed.
+ */
+class FamilyNotifier(private val server: String = "https://ntfy.sh") {
+    private val http = OkHttpClient.Builder().connectTimeout(6, TimeUnit.SECONDS).readTimeout(10, TimeUnit.SECONDS).build()
 
-    suspend fun saveSession(profileId: String, session: JSONObject): CoachNote {
-        val c = postJson("/api/sessions", JSONObject().put("profileId", profileId).put("session", session)).getJSONObject("coach")
-        return CoachNote(c.getString("spoken"), c.getString("summary"), c.optString("next"), c.optString("family"), c.optString("source"))
+    suspend fun send(topic: String, title: String, message: String, urgent: Boolean, tags: List<String>, clickUrl: String? = null): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val body = JSONObject().put("topic", topic).put("title", title).put("message", message)
+                .put("priority", if (urgent) 5 else 3).put("tags", JSONArray(tags))
+            clickUrl?.let { body.put("click", it) }
+            http.newCall(Request.Builder().url(server).post(body.toString().toRequestBody(JSON_TYPE)).build()).execute().use { it.isSuccessful }
+        }.getOrDefault(false)
     }
-
-    suspend fun alert(profileId: String, kind: String): String =
-        postJson("/api/alerts", JSONObject().put("profileId", profileId).put("kind", kind)).optString("notified", "your family")
 }

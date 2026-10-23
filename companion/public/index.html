@@ -6,24 +6,24 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%2314213d%27/%3E%3Ccircle cx=%2732%27 cy=%2718%27 r=%277%27 fill=%27%23f2c14e%27/%3E%3Cpath d=%27M32 28v22M20 30l12 2 12-2M14 52h36%27 stroke=%27%23f7f3ea%27 stroke-width=%275%27 stroke-linecap=%27round%27 fill=%27none%27/%3E%3C/svg%3E">
 <title>Steady</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap">
 <style>
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #14213d; color: #f7f3ea; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; padding: 24px; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0f1111; color: #fff; font-family: Inter, system-ui, sans-serif; padding: 24px; }
   form { display: grid; gap: 14px; width: min(360px, 100%); text-align: center; }
   h1 { margin: 0; font-size: 34px; }
   p { margin: 0; color: #a8b3c9; font-size: 18px; }
-  input { font: inherit; font-size: 40px; letter-spacing: .3em; text-align: center; padding: 12px; border-radius: 14px; border: 2px solid #2b3f6b; background: #0e1830; color: #f7f3ea; }
-  button { font: inherit; font-size: 20px; font-weight: 700; padding: 16px; border: 0; border-radius: 14px; background: #f2c14e; color: #2b1e00; }
+  input { font: inherit; font-size: 40px; letter-spacing: .2em; text-align: center; padding: 12px; border-radius: 14px; border: 2px solid #37475a; background: #232f3e; color: #fff; }
+  button { font: inherit; font-size: 20px; font-weight: 700; padding: 16px; border: 0; border-radius: 14px; background: #ffd814; color: #0f1111; border: 1px solid #fcd200 !important; border-radius: 999px !important; }
   a { color: #a8b3c9; font-size: 15px; }
 </style>
 </head>
 <body>
   <form onsubmit="event.preventDefault(); location.href = '/p/' + this.code.value.trim()">
     <h1>Steady</h1>
-    <p>Enter the 4-digit code shown on your TV.</p>
-    <input name="code" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" required aria-label="TV code">
+    <p>Enter the 6-digit code shown on your TV.</p>
+    <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="off" required aria-label="TV code">
     <button>Use this phone as the camera</button>
-    <a href="/family">Family updates</a>
+    
   </form>
 </body>
 </html>

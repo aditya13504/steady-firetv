@@ -1,42 +1,18 @@
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { after, before, test } from 'node:test';
 import { WebSocket } from 'ws';
-import { planFor } from '../src/coach.js';
-import { likelyProfile, seed } from '../src/household.js';
-
-test('progression: targets rise after two good sessions, chair stand re-test every two weeks', () => {
-  const h = seed();
-  const maggie = planFor(h.profiles[0]);
-  assert.equal(maggie.items.find(i => i.id === 'SIT_TO_STAND')!.target, 12);
-  assert.ok(maggie.items.some(i => i.id === 'CHAIR_STAND_TEST'));
-  assert.match(maggie.why, /4 to 8 seconds/);
-  const walter = planFor(h.profiles[1]);
-  assert.equal(walter.items.find(i => i.id === 'SIT_TO_STAND')!.target, 8);
-  assert.ok(!walter.items.some(i => i.id === 'CHAIR_STAND_TEST'));
-});
-
-test('household pattern: morning suggests Maggie, evening suggests Walter', () => {
-  const h = seed();
-  const morning = new Date();
-  morning.setHours(9, 30);
-  const evening = new Date();
-  evening.setHours(18, 45);
-  assert.equal(likelyProfile(h, morning).id, 'maggie');
-  assert.equal(likelyProfile(h, evening).id, 'walter');
-});
+import { clean, validIntro, validSummary } from '../src/coach.js';
 
 const PORT = 19000 + Math.floor(Math.random() * 500);
+const BASE = `http://localhost:${PORT}`;
 let proc: ChildProcess;
+
 before(async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'steady-'));
-  proc = spawn(process.execPath, ['--import', 'tsx', 'src/server.ts'], { env: { ...process.env, PORT: String(PORT), STEADY_DATA: join(dir, 'h.json'), LLM_API_KEY: '' }, stdio: 'pipe' });
+  proc = spawn(process.execPath, ['--import', 'tsx', 'src/server.ts'], { env: { ...process.env, PORT: String(PORT), LLM_API_KEY: '', GROQ_API_KEY: '', PUBLIC_URL: 'https://steady.example' }, stdio: 'pipe' });
   for (let i = 0; i < 80; i++) {
     try {
-      if ((await fetch(`http://localhost:${PORT}/health`)).ok) return;
+      if ((await fetch(`${BASE}/health`)).ok) return;
     } catch {}
     await new Promise(r => setTimeout(r, 150));
   }
@@ -60,13 +36,12 @@ function open(url: string): Promise<{ ws: WebSocket; next: () => Promise<any> }>
   });
 }
 
-test('pairing: TV gets a code, phone joins with it, pose points and commands reach the TV', async () => {
+test('pairing: TV gets a 6-digit code on the public URL; pose points and commands reach the TV; state reaches the phone', async () => {
   const tv = await open(`ws://localhost:${PORT}/ws?role=tv`);
   const hello = await tv.next();
   assert.equal(hello.t, 'paired-code');
-  assert.match(hello.code, /^\d{4}$/);
-  assert.match(hello.phoneUrl, new RegExp(`/p/${hello.code}$`));
-  assert.match(hello.qr, /<svg/);
+  assert.match(hello.code, /^\d{6}$/);
+  assert.equal(hello.phoneUrl, `https://steady.example/p/${hello.code}`);
 
   const phone = await open(`ws://localhost:${PORT}/ws?role=phone&code=${hello.code}`);
   assert.equal((await phone.next()).t, 'hello');
@@ -82,27 +57,51 @@ test('pairing: TV gets a code, phone joins with it, pose points and commands rea
   phone.ws.close();
 });
 
-test('a wrong code is refused with a plain message', async () => {
-  const phone = await open(`ws://localhost:${PORT}/ws?role=phone&code=0000`);
-  const m = await phone.next();
-  assert.equal(m.t, 'error');
-  assert.match(m.message, /No TV is showing code 0000/);
+test('a reconnecting TV keeps its code', async () => {
+  const a = await open(`ws://localhost:${PORT}/ws?role=tv`);
+  const { code } = await a.next();
+  a.ws.close();
+  await new Promise(r => setTimeout(r, 100));
+  const b = await open(`ws://localhost:${PORT}/ws?role=tv&code=${code}`);
+  assert.equal((await b.next()).code, code);
+  b.ws.close();
 });
 
-test('sessions: saved to history, coach note returned without an LLM key, family feed updated', async () => {
-  const res = await fetch(`http://localhost:${PORT}/api/sessions`, {
+test('wrong codes are refused, and guessing is rate limited', async () => {
+  let last = '';
+  for (let i = 0; i < 12; i++) {
+    const phone = await open(`ws://localhost:${PORT}/ws?role=phone&code=000000`);
+    last = (await phone.next()).message;
+  }
+  assert.match(last, /Too many tries/);
+});
+
+test('coach endpoints validate input and fall back cleanly without an LLM key', async () => {
+  const bad = await fetch(`${BASE}/api/coach/summary`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: { name: 'x' } }) });
+  assert.equal(bad.status, 400);
+  const ok = await fetch(`${BASE}/api/coach/summary`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      profileId: 'maggie',
-      session: { durationSec: 900, results: [{ id: 'SIT_TO_STAND', reps: 12, target: 12, quality: 90 }, { id: 'ONE_LEG_STAND', reps: 2, target: 2, bestHoldMs: 11000 }], chairStand: { stands: 11, belowAverage: false } }
-    })
+    body: JSON.stringify({ profile: { name: 'Maggie', age: 76, sex: 'female' }, today: { results: [] } })
   });
-  const body = await res.json();
-  assert.equal(body.coach.source, 'rules');
-  assert.match(body.coach.summary, /12 sit to stands/);
-  const fam = await (await fetch(`http://localhost:${PORT}/api/family`)).json();
-  assert.match(fam.feed.at(-1).text, /Maggie finished/);
-  const alert = await (await fetch(`http://localhost:${PORT}/api/alerts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profileId: 'maggie', kind: 'possible_fall' }) })).json();
-  assert.equal(alert.notified, 'Daniel');
+  assert.deepEqual(await ok.json(), { source: 'none' });
+  const intro = await fetch(`${BASE}/api/coach/intro`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Maggie', plan: [{ id: 'SIT_TO_STAND', target: 12 }], reasons: ['You reached 10 twice.'] })
+  });
+  assert.deepEqual(await intro.json(), { intro: null });
+});
+
+test('family page only serves well-formed secret topics', async () => {
+  assert.equal((await fetch(`${BASE}/f/steady-abcdefghijkmnpqrstuvwxyz`)).status, 200);
+  assert.equal((await fetch(`${BASE}/f/../../etc`)).status, 404);
+  assert.equal((await fetch(`${BASE}/f/short`)).status, 404);
+});
+
+test('request validation and output cleaning', () => {
+  assert.ok(validIntro({ name: 'Maggie', plan: [{ id: 'MARCH', target: 20 }], reasons: [] }));
+  assert.ok(!validIntro({ name: 'Maggie', plan: [{ id: 'DROP TABLE', target: 1 }], reasons: [] }));
+  assert.ok(!validSummary({ profile: { name: 'M', age: 'old', sex: 'female' }, today: {} }));
+  assert.equal(clean('sit‑to‑stand — great'), 'sit-to-stand, great');
 });

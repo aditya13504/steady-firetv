@@ -3,55 +3,106 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%2314213d%27/%3E%3Ccircle cx=%2732%27 cy=%2718%27 r=%277%27 fill=%27%23f2c14e%27/%3E%3Cpath d=%27M32 28v22M20 30l12 2 12-2M14 52h36%27 stroke=%27%23f7f3ea%27 stroke-width=%275%27 stroke-linecap=%27round%27 fill=%27none%27/%3E%3C/svg%3E">
+<meta name="theme-color" content="#232f3e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%23232f3e%27/%3E%3Ccircle cx=%2732%27 cy=%2716%27 r=%276%27 fill=%27%23ff9900%27/%3E%3Cpath d=%27M32 26v24M20 28l12 2 12-2M14 54h36%27 stroke=%27%23fff%27 stroke-width=%275%27 stroke-linecap=%27round%27 fill=%27none%27/%3E%3C/svg%3E">
 <title>Steady family updates</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
-  :root { --bg: #eef1f6; --ink: #14213d; --muted: #5d6b85; --bubble: #ffffff; --alert: #f28b82; --ok: #7fc8a9; }
+  :root { --ink: #0f1111; --squid: #232f3e; --squid2: #37475a; --page: #eaeded; --card: #ffffff; --line: #d5d9d9; --muted: #565959; --orange: #ff9900; --yellow: #ffd814; --yellow-edge: #fcd200; --amber: #ffa41c; --red: #cc0c39; --green: #067d62; --blue: #007185; }
   * { box-sizing: border-box; }
-  body { margin: 0; background: #dfe4ec; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; color: var(--ink); min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
-  .phone { width: min(400px, 100%); background: var(--bg); border-radius: 36px; padding: 18px 16px 22px; box-shadow: 0 30px 60px -30px #14213d66, inset 0 0 0 10px #14213d; min-height: 640px; display: flex; flex-direction: column; }
-  header { text-align: center; padding: 18px 0 14px; border-bottom: 1px solid #d5dbe6; }
-  header strong { display: block; font-size: 18px; }
-  header span { font-size: 14px; color: var(--muted); }
-  ol { list-style: none; margin: 0; padding: 14px 4px; display: flex; flex-direction: column; gap: 10px; flex: 1; overflow: auto; }
-  li { align-self: flex-start; max-width: 90%; background: var(--bubble); border-radius: 18px 18px 18px 6px; padding: 10px 14px; font-size: 16px; line-height: 1.35; animation: pop .3s ease-out; }
-  li.alert { background: var(--alert); color: #2a0b08; font-weight: 700; }
-  li.resolved { background: var(--ok); color: #0e2a1f; }
-  li time { display: block; font-size: 12px; font-weight: 400; opacity: .7; margin-top: 4px; }
-  li.empty { background: none; color: var(--muted); align-self: center; animation: none; }
-  @keyframes pop { from { transform: scale(.92); opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) { li { animation: none; } }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.45 Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  header { background: var(--squid); color: #fff; padding: 14px 18px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 2; }
+  header b { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  header span { margin-left: auto; font-size: 13px; color: #ccd; display: flex; align-items: center; gap: 8px; }
+  .live { width: 9px; height: 9px; border-radius: 50%; background: #9aa; }
+  .live.on { background: #3fbf8f; animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .sub { background: var(--squid2); color: #fff; padding: 10px 18px; font-size: 14px; }
+  main { max-width: 560px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+  h1 { font-size: 21px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  p { margin: 0; color: var(--muted); }
+  .steps { display: grid; gap: 10px; margin-top: 12px; }
+  .btn { display: block; text-align: center; text-decoration: none; color: var(--ink); font-weight: 600; padding: 12px 16px; border-radius: 999px; border: 1px solid var(--yellow-edge); background: var(--yellow); font: 600 16px Inter, system-ui, sans-serif; cursor: pointer; width: 100%; }
+  .btn.alt { background: var(--amber); border-color: #ff8f00; }
+  .btn.ghost { background: #fff; border-color: var(--line); }
+  .btn:active { transform: scale(.98); }
+  .topic { font: 600 13px ui-monospace, monospace; background: #f7fafa; border: 1px dashed var(--line); padding: 8px 10px; border-radius: 8px; word-break: break-all; color: var(--squid); }
+  .feed { display: grid; gap: 10px; }
+  .msg { background: var(--card); border: 1px solid var(--line); border-left: 6px solid var(--blue); border-radius: 10px; padding: 12px 14px; animation: rise .4s cubic-bezier(.2,0,0,1); }
+  .msg.alert { border-left-color: var(--red); background: #fff5f6; }
+  .msg.ok { border-left-color: var(--green); }
+  .msg b { display: block; font-size: 16px; margin-bottom: 2px; }
+  .msg.alert b { color: var(--red); }
+  .msg time { display: block; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .empty { text-align: center; color: var(--muted); padding: 22px 0; }
+  @keyframes rise { from { transform: translateY(10px); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
 </style>
 </head>
 <body>
-  <main class="phone">
-    <header><strong id="who">Steady</strong><span id="sub">Updates from home</span></header>
-    <ol id="feed"><li class="empty">No updates yet.</li></ol>
+  <header><b>steady</b><span><i class="live" id="live"></i><em id="status" style="font-style:normal">Connecting…</em></span></header>
+  <div class="sub">Family updates: session summaries and urgent safety alerts.</div>
+  <main>
+    <section class="card">
+      <h1>Get alerts on this phone</h1>
+      <p>Steady sends through <b>ntfy</b>, a free, open-source notification app. No account needed.</p>
+      <div class="steps">
+        <a class="btn" id="store" href="https://ntfy.sh/app">1. Install the free ntfy app</a>
+        <a class="btn alt" id="subscribe" href="#">2. Subscribe to this household</a>
+        <button class="btn ghost" id="browser">Or: notify me in this browser</button>
+      </div>
+      <p style="margin-top:12px;font-size:13px">In the app you can also add the topic by hand:</p>
+      <div class="topic" id="topic"></div>
+    </section>
+    <section>
+      <h1 style="padding:4px 2px 8px">Latest</h1>
+      <div class="feed" id="feed"><div class="empty">No updates yet. They appear here the moment Steady sends one.</div></div>
+    </section>
   </main>
 <script>
-const feed = document.getElementById('feed');
-function item(m) {
-  const li = document.createElement('li');
-  li.className = m.kind;
-  li.textContent = m.text;
-  const t = document.createElement('time');
-  t.textContent = new Date(m.at).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
-  li.append(t);
-  return li;
-}
-fetch('/api/family').then(r => r.json()).then(d => {
-  document.getElementById('who').textContent = `${d.family.name}'s phone`;
-  document.getElementById('sub').textContent = `Steady updates from ${d.household.replace(/^The /, 'the ')}`;
-  if (d.feed.length) feed.replaceChildren(...d.feed.slice(-12).map(item));
-});
-new EventSource('/api/family/events').onmessage = e => {
-  feed.querySelector('.empty')?.remove();
-  feed.append(item(JSON.parse(e.data)));
-  feed.scrollTop = feed.scrollHeight;
-  if (navigator.vibrate) navigator.vibrate(200);
+const topic = location.pathname.split('/').filter(Boolean).pop();
+const $ = id => document.getElementById(id);
+$('topic').textContent = topic;
+const ua = navigator.userAgent;
+$('store').href = /iPhone|iPad/.test(ua) ? 'https://apps.apple.com/app/ntfy/id1625396347' : /Android/.test(ua) ? 'https://play.google.com/store/apps/details?id=io.heckel.ntfy' : 'https://ntfy.sh/app';
+$('subscribe').href = /Android|iPhone|iPad/.test(ua) ? `ntfy://ntfy.sh/${topic}` : `https://ntfy.sh/${topic}`;
+$('browser').onclick = async () => {
+  if (!('Notification' in window)) return alert('This browser does not support notifications. Use the ntfy app instead.');
+  const p = await Notification.requestPermission();
+  $('browser').textContent = p === 'granted' ? 'Browser notifications are on while this page is open' : 'Notifications were blocked in browser settings';
 };
+
+const seen = new Set();
+function render(m, fresh) {
+  if (!m || m.event !== 'message' || seen.has(m.id)) return;
+  seen.add(m.id);
+  $('feed').querySelector('.empty')?.remove();
+  const urgent = (m.priority ?? 3) >= 5;
+  const ok = (m.tags || []).includes('white_check_mark');
+  const el = document.createElement('article');
+  el.className = 'msg' + (urgent ? ' alert' : ok ? ' ok' : '');
+  const b = document.createElement('b'); b.textContent = m.title || 'Steady';
+  const p = document.createElement('div'); p.textContent = m.message || '';
+  const t = document.createElement('time'); t.textContent = new Date(m.time * 1000).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  el.append(b, p, t);
+  $('feed').prepend(el);
+  if (fresh && 'Notification' in window && Notification.permission === 'granted') new Notification(m.title || 'Steady', { body: m.message, requireInteraction: urgent });
+  if (fresh && urgent && navigator.vibrate) navigator.vibrate([300, 150, 300]);
+}
+
+fetch(`https://ntfy.sh/${topic}/json?poll=1&since=7d`).then(r => r.text()).then(t => {
+  t.split('\n').filter(Boolean).map(l => JSON.parse(l)).sort((a, b) => a.time - b.time).forEach(m => render(m, false));
+}).catch(() => {});
+
+function live() {
+  const es = new EventSource(`https://ntfy.sh/${topic}/sse`);
+  es.onopen = () => { $('live').className = 'live on'; $('status').textContent = 'Live'; };
+  es.onmessage = e => render(JSON.parse(e.data), true);
+  es.onerror = () => { $('live').className = 'live'; $('status').textContent = 'Reconnecting…'; };
+}
+live();
 </script>
 </body>
 </html>
