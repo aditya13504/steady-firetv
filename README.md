@@ -139,7 +139,7 @@ Choose **Set up my household** (or **Try the demo**). Add a person, then **Start
 ## Tests
 
 ```bash
-cd tv && ./gradlew testDebugUnitTest      # 17 tests: reps, cues, holds, fall check, CDC norms, plan progression, household prediction, storage
+cd tv && ./gradlew testDebugUnitTest      # 19 tests: reps, cues, holds, fall check (and re-arming after "I'm OK"), CDC norms, plan progression, household prediction, storage
 cd companion && npm test                  # 6 tests: pairing relay, code-guess limiting, coach endpoint validation, family page routing
 ```
 
