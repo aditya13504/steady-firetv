@@ -99,7 +99,7 @@ fun Pill(text: String, dot: Color, modifier: Modifier = Modifier, pulse: Boolean
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (pulse) PulseDot(dot) else Box(Modifier.size(11.dp).clip(CircleShape).background(dot))
-        Text(text, style = T.small.copy(color = C.text))
+        Text(text, style = T.small.copy(color = C.text), maxLines = 1)
     }
 }
 

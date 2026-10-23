@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.steady.tv.data.HouseholdStore
 import com.steady.tv.pose.ExerciseId
 import com.steady.tv.ui.C
@@ -47,6 +48,13 @@ class MainActivity : ComponentActivity() {
         app = AppController(lifecycleScope, Speech(this), HouseholdStore(File(filesDir, "household.json")), server, hour)
         app.onServerChanged = { prefs.edit().putString("server", it).apply() }
         app.start()
+        // Scripted first-run setup for automated tests: --es setup "Ravi,84,m,Priya,daughter"
+        intent.getStringExtra("setup")?.split(",")?.takeIf { it.size >= 3 }?.let { f ->
+            lifecycleScope.launch {
+                kotlinx.coroutines.delay(AppController.SPLASH_MS + 300)
+                app.addPerson(f[0], f[1].toInt(), f[2].startsWith("f"), "", f.getOrNull(3), f.getOrNull(4))
+            }
+        }
         intent.getStringExtra("demo")?.let { person ->
             app.autoDemo(person, intent.getStringExtra("exercise")?.let { runCatching { ExerciseId.valueOf(it) }.getOrNull() })
         }

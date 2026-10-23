@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -33,9 +34,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.input.ImeAction
@@ -86,7 +89,7 @@ fun WelcomeScreen(app: AppController) {
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.appear(3)) {
                     TvButton("Set up my household", { app.startSetup() }, Modifier.focusRequester(first), primary = true)
-                    TvButton("Explore a demo household", { app.exploreDemo() })
+                    TvButton("Try the demo", { app.exploreDemo() })
                 }
                 Text("Takes a minute. Everything is stored on this TV.", style = T.small, modifier = Modifier.appear(4))
             }
@@ -133,8 +136,8 @@ fun SetupScreen(app: AppController) {
                 Field("What would they like to do with more confidence? (optional)") { TvTextField(goal, { goal = it }, "Walk to the market without worrying about falling") }
                 if (!adding || app.household?.hasFamily != true) {
                     Field("Family member who gets alerts (optional)") { TvTextField(family, { family = it }, "Daniel") }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        for (r in RELATIONS) Choice(r.replaceFirstChar { it.uppercase() }, relation == r) { relation = r }
+                    for (row in RELATIONS.chunked(3)) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        for (r in row) Choice(r.replaceFirstChar { it.uppercase() }, relation == r) { relation = r }
                     }
                 }
                 error?.let { Text(it, style = T.label.copy(color = C.orange)) }
@@ -165,11 +168,21 @@ private fun Field(label: String, content: @Composable () -> Unit) {
 fun TvTextField(value: String, onChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier) {
     val source = remember { MutableInteractionSource() }
     val focused by source.collectIsFocusedAsState()
+    val focus = LocalFocusManager.current
     BasicTextField(
         value = value, onValueChange = { onChange(it.take(60)) }, singleLine = true, interactionSource = source,
         textStyle = T.heading.copy(color = C.white), cursorBrush = SolidColor(C.orange),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
-        modifier = modifier.fillMaxWidth(0.92f),
+        keyboardActions = KeyboardActions(onNext = { focus.moveFocus(FocusDirection.Down) }, onDone = { focus.moveFocus(FocusDirection.Down) }),
+        // A text field keeps D-pad up/down to itself on TV; hand them back so the remote can move between fields.
+        modifier = modifier.fillMaxWidth(0.92f).onPreviewKeyEvent {
+            if (it.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+            when (it.nativeKeyEvent.keyCode) {
+                KeyEvent.KEYCODE_DPAD_DOWN -> focus.moveFocus(FocusDirection.Down)
+                KeyEvent.KEYCODE_DPAD_UP -> focus.moveFocus(FocusDirection.Up)
+                else -> false
+            }
+        },
         decorationBox = { inner ->
             Box(
                 Modifier.clip(RoundedCornerShape(14.dp)).background(C.squid).border(if (focused) 3.dp else 1.dp, if (focused) C.white else C.line, RoundedCornerShape(14.dp))

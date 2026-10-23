@@ -70,9 +70,9 @@ fun MainScreen(app: AppController) {
             TopNav(app.tab, { app.tab = it }, Modifier.padding(start = 48.dp, end = 48.dp, top = 22.dp)) {
                 val p = app.pairing
                 when {
-                    !p.serverUp -> Pill("Offline: demo person only", C.red)
-                    p.phoneConnected -> Pill("Phone camera linked", C.green, pulse = true)
-                    else -> Pill("No phone linked", C.muted)
+                    !p.serverUp -> Pill("Offline", C.red)
+                    p.phoneConnected -> Pill("Phone linked", C.green, pulse = true)
+                    else -> Pill("No phone yet", C.muted)
                 }
             }
             AnimatedContent(
@@ -100,8 +100,13 @@ private fun HomeTab(app: AppController) {
     val p = app.selected
     val plan = app.plan
     val start = remember { FocusRequester() }
-    LaunchedEffect(p?.id) { runCatching { start.requestFocus() } }
     val scroll = rememberScrollState()
+    LaunchedEffect(p?.id) {
+        runCatching { start.requestFocus() }
+        // Focusing the button would scroll the hero up; the greeting should stay in view.
+        kotlinx.coroutines.delay(60)
+        scroll.scrollTo(0)
+    }
     Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(horizontal = 48.dp).padding(top = 14.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         // hero
         Box(Modifier.fillMaxWidth().height(318.dp)) {
