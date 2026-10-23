@@ -272,7 +272,8 @@ class AppController(
     /** Web page where the family subscribes to push alerts for this household. */
     fun familyUrl(): String? {
         val h = household ?: return null
-        val base = pairing.publicBase ?: return null
+        // With no companion reachable, ntfy's own page still lets the family subscribe.
+        val base = pairing.publicBase ?: return "https://ntfy.sh/${h.familyTopic}"
         return "$base/f/${h.familyTopic}"
     }
 
