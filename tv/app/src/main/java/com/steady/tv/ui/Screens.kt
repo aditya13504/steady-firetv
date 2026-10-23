@@ -338,7 +338,7 @@ fun SummaryScreen(app: AppController) {
         Confetti(if (s.stoppedEarly) 0 else 1, Modifier.fillMaxSize())
         Row(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 30.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(if (s.stoppedEarly) "Good effort, ${s.person.name}" else "Well done, ${s.person.name}", style = T.hero, modifier = Modifier.appear(0))
+                Text(if (s.stoppedEarly) "Good effort, ${s.person.name}" else "Well done, ${s.person.name}", style = T.display, maxLines = 1, modifier = Modifier.appear(0))
                 Text(if (s.minutes == 1) "1 minute today" else "${s.minutes} minutes today", style = T.small, modifier = Modifier.appear(1))
                 if (s.chairStand != null && s.chairStandThreshold != null) ChairStandCard(s.chairStand, s.chairStandThreshold, s.previousChairStand, s.person.age)
                 Spacer(Modifier.height(4.dp))
@@ -388,9 +388,12 @@ private fun ChairStandCard(stands: Int, threshold: Int, previous: Int?, age: Int
     LaunchedEffect(stands) { fill.animateTo(1f, tween(1_000, delayMillis = 200, easing = M.emphasized)) }
     Panel(Modifier.fillMaxWidth().padding(top = 6.dp).appear(2), color = C.squid) {
         Column(Modifier.padding(horizontal = 22.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("$shown", style = T.display.copy(color = if (ok) C.green else C.orange))
-                Text("stands in 30 seconds" + (previous?.let { if (stands > it) ", up from $it" else "" } ?: ""), style = T.heading, modifier = Modifier.padding(bottom = 6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("$shown", style = T.hero.copy(color = if (ok) C.green else C.orange))
+                Column {
+                    Text("stands in 30 seconds", style = T.heading, maxLines = 1)
+                    previous?.let { Text(if (stands > it) "up from $it last time" else "last time: $it", style = T.small.copy(color = if (stands > it) C.green else C.muted)) }
+                }
             }
             val max = (threshold * 2).coerceAtLeast(stands + 2)
             Canvas(Modifier.fillMaxWidth().height(22.dp)) {

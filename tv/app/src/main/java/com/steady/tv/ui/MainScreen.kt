@@ -256,7 +256,7 @@ private fun ChartCard(title: String, unit: String, values: List<Int>, line: Int?
                 Text(unit, style = T.small, modifier = Modifier.padding(bottom = 6.dp))
                 if (values.size >= 2) {
                     val d = values.last() - values.first()
-                    Text(if (d >= 0) "+$d since start" else "$d since start", style = T.small.copy(color = if (d >= 0) C.green else C.orange), modifier = Modifier.padding(bottom = 6.dp))
+                    Text(if (d >= 0) "+$d" else "$d", style = T.small.copy(color = if (d >= 0) C.green else C.orange), modifier = Modifier.padding(bottom = 6.dp))
                 }
             }
             Canvas(Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp)) {

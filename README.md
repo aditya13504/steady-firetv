@@ -23,23 +23,23 @@ Built for the **Fire TV track** of the Build, Ship, Shape Amazon Developer Hacka
 | **Coach + mirror** | An animated coach demonstrates each move beside a mirrored skeleton of you, so "do what I do" works from the sofa. |
 | **Counts and corrects** | Rep counting for sit-to-stand, heel raises, marching and side leg raises; a timer and steadiness score for one-leg balance; one form cue at a time ("Stand all the way up", "Lift your knees a little higher"), spoken and shown. |
 | **Multi-modal control** | D-pad on the Fire TV remote (OK pauses, ▶ skips, Back finishes), voice on the phone ("pause", "easier", "next", "I'm OK"), big visuals on the TV, in one flow. |
-| **Safety check** | If the body goes horizontal and stays there, the session stops, a full-screen "Are you OK?" appears, and after 15 seconds without an answer the family contact is alerted. "I'm OK" sends a follow-up. |
-| **Clinically grounded progress** | The CDC STEADI 30-second chair stand test, scored against age and sex norms and repeated every two weeks. |
-| **Adapts to the household** | Each person has a profile and history. The home screen predicts who's exercising from the household's own habits ("Walter usually exercises around 6:30 PM"). The plan progresses by Otago-style rules: more reps after the target is met twice, fewer after a miss. An AI coach explains the plan and writes the end-of-session summary. |
-| **Family in the loop** | A family page (open it on a phone) receives session summaries and safety alerts as they happen. |
+| **Safety check** | If the body goes horizontal and stays there, the session stops, a full-screen "Are you OK?" appears, and after 15 seconds without an answer the family gets an **urgent push notification**. "I'm OK" sends a follow-up. |
+| **Clinically grounded progress** | The CDC STEADI 30-second chair stand test, scored against age and sex norms and repeated every two weeks. Progress charts per person. |
+| **Your household, on your TV** | First-run setup adds the people who'll exercise (name, age, sex for the norms, a personal goal, a family contact). Their history stays **on the TV**. The home screen predicts who's exercising from the household's own habits ("Walter usually exercises around 6:30 PM"). Plans progress by Otago-style rules; an AI coach explains the plan and writes the end-of-session summary. A demo household is one click away. |
+| **Family in the loop** | Real push notifications through [ntfy](https://ntfy.sh) (free, open source, no account): the family scans a QR code on the TV once and gets session summaries and urgent alerts on their phone. |
 
 ## Screens
 
 | | |
 |---|---|
-| ![Home: household-aware greeting, today's adaptive plan, progress](docs/images/home.png) | ![Pairing: scan to use your phone as the camera](docs/images/pairing.png) |
-| **Home.** Predicts who's exercising, explains today's plan, shows progress against CDC norms. | **Pairing.** Scan once; video stays on the phone. |
-| ![Session: coach, mirror, counter and a form cue](docs/images/session.png) | ![One-leg balance: hold timer and steadiness](docs/images/balance.png) |
-| **Session.** Coach, live mirror, counter, one cue at a time. | **Balance.** Hold timer and a steadiness score. |
-| ![30-second chair stand test](docs/images/chair-stand.png) | ![Possible fall: are you OK?](docs/images/alert.png) |
-| **CDC 30-second chair stand.** Clock starts when you sit. | **Safety.** No answer, so the family is told. |
-| ![Summary with AI coach note and CDC norm](docs/images/summary.png) | ![Family updates on a phone](docs/images/family.png) |
-| **Summary.** AI coach note and the CDC norm marker. | **Family.** Summaries and alerts as they happen. |
+| ![Home: Fire TV hero with greeting, today's adaptive plan, people](docs/images/home.png) | ![Session: coach, live mirror, rep counter and a form cue](docs/images/session.png) |
+| **Home.** Predicts who's exercising, explains today's plan. | **Session.** Coach, live mirror, animated counter, one cue at a time. |
+| ![Progress charts against the CDC norm](docs/images/progress.png) | ![Possible fall: are you OK?](docs/images/alert.png) |
+| **Progress.** Sit to stand, balance and the chair stand check over time. | **Safety.** No answer, so the family gets an urgent push alert. |
+| ![Summary with the AI coach's note and the CDC norm marker](docs/images/summary.png) | ![Family: scan once for push alerts](docs/images/family-tab.png) |
+| **Summary.** The AI coach's note and the strength check against the norm. | **Family.** Scan once for push alerts; a test button proves it works. |
+| ![First-run setup with the TV keyboard](docs/images/setup.png) | ![Exercise library](docs/images/exercises.png) |
+| **Setup.** Built for the remote: D-pad age stepper, chips, TV keyboard. | **Exercises.** Practise any move on its own. |
 
 ## How it works
 
@@ -49,40 +49,45 @@ flowchart LR
     CAM[Camera] --> MP[MediaPipe Pose<br/>on device]
     MIC[Web Speech<br/>voice commands]
   end
-  subgraph Companion["Companion server (Node)"]
-    RELAY[Pairing relay<br/>4-digit code]
-    COACH[Coach: progression rules<br/>+ LLM summaries]
-    HOUSE[(Household<br/>history)]
-    FAMILY[Family feed]
+  subgraph Cloud["Steady companion (stateless)"]
+    RELAY[Pairing relay<br/>6-digit code]
+    COACH[Coach voice<br/>LLM, nothing stored]
   end
   subgraph TV["Fire TV app (Kotlin, Compose for TV)"]
     ENGINE[Exercise engine<br/>reps, holds, cues, fall check]
-    UI[10-foot UI + TTS]
+    HOUSE[(Household and history<br/>on the TV)]
+    UI[10-foot UI, motion, TTS]
     REMOTE[D-pad remote]
   end
+  NTFY[ntfy push] --> FAM[Family phone]
   MP -- 33 points, 15 fps --> RELAY
   MIC -- commands --> RELAY
   RELAY -- WebSocket --> ENGINE
   ENGINE --> UI
   REMOTE --> ENGINE
-  TV -- plan, sessions, alerts --> COACH
-  COACH --> HOUSE
-  COACH --> FAMILY
+  ENGINE --> HOUSE
+  HOUSE -- numbers for one request --> COACH
+  TV -- summaries, urgent alerts --> NTFY
 ```
 
-- **`tv/`**: the Fire TV app. Kotlin with Jetpack Compose for TV (the same stack as Amazon's Fire TV starter sample), minSdk 25 (Fire OS 6+), Leanback launcher banner, D-pad and media-key handling, Android TextToSpeech, OkHttp WebSocket. The exercise engine (`pose/`) is pure Kotlin with JVM unit tests.
-- **`companion/`**: Node + TypeScript. Pairs phone and TV by code, relays pose frames, serves the phone page and the family page, stores household history, and runs the coach. The LLM key stays on this server. Works without an LLM using rule-based text.
-- **[steady-pose](https://github.com/aditya13504/steady-pose)**: the exercise engine, also published as a standalone MIT library.
-- **Demo person**: a synthetic person generated from the same keyframes as the coach animation (with natural jitter and the occasional sloppy rep), so the app runs with no camera at all. The unit tests use it too.
+- **`tv/`**: the Fire TV app. Kotlin with Jetpack Compose for TV (Amazon's Fire TV starter stack), minSdk 25 (Fire OS 6+), Leanback banner, D-pad and media-key handling, Android TextToSpeech, OkHttp WebSocket. A Fire TV-native look: squid-ink surfaces, Amazon orange actions, Prime blue focus glow, top navigation, and motion throughout (animated logo, ambient light, spring focus, rep bursts, ring sweeps, confetti, pulse rings, staggered reveals). The exercise engine (`pose/`) and the coach rules (`data/`) are pure Kotlin with JVM tests.
+- **`companion/`**: Node + TypeScript, **stateless**: pairs phone and TV by a 6-digit code and relays frames, serves the phone and family pages, and turns plans and sessions into the coach's words. Rate-limited, input-validated, size-capped. The LLM key stays here. Without a key the TV uses its own rule-based coach text.
+- **[steady-pose](https://github.com/aditya13504/steady-pose)**: the exercise engine as a standalone MIT library.
+- **Demo person**: a synthetic person generated from the coach's keyframes (with jitter and the occasional sloppy rep), so the app runs with no camera, and the tests use it too.
 
 ## Run it
 
 ### 1. Companion server
 
+**Cloud (one click):** [Deploy to Render](https://render.com/deploy?repo=https://github.com/aditya13504/steady-firetv). The blueprint (`render.yaml`) builds `companion/Dockerfile` and asks for `LLM_API_KEY`. Render serves it over HTTPS, which phones need for the camera.
+
+**Local:**
+
 ```bash
 cd companion
 npm install
-npm start            # http://localhost:8787  (phones on the same Wi-Fi use the LAN address it prints)
+npm start            # http://localhost:8787
+npm run tunnel       # same, plus a free HTTPS address so a real phone can use its camera
 ```
 
 Optional AI coach: create `.env` in the repo root (or `companion/`) with an OpenAI-compatible key. Groq's free tier works:
@@ -101,33 +106,19 @@ LLM_API_KEY=gsk_...
 sdkmanager "system-images;android-30;android-tv;x86"
 avdmanager create avd -n FireTV_API30 -k "system-images;android-30;android-tv;x86" -d tv_1080p
 emulator -avd FireTV_API30 &
-cd tv && ./gradlew installDebug
+cd tv && ./gradlew installDebug          # add -PsteadyCloud=https://<your-companion-url> to default to a cloud companion
 adb shell am start -n com.steady.tv/.MainActivity
 ```
 
-The emulator reaches the companion at `http://10.0.2.2:8787` by default.
+Without a cloud address the emulator uses the companion on your computer (`http://10.0.2.2:8787`). **Settings → Steady server** switches between them.
 
-**Real Fire TV**: enable *Developer options → ADB debugging*, then:
+**Real Fire TV**: enable *Developer options → ADB debugging*, then `adb connect <fire-tv-ip>`, install the APK from the [release](https://github.com/aditya13504/steady-firetv/releases), and optionally `adb shell am start -n com.steady.tv/.MainActivity --es server https://<companion-url>`.
 
-```bash
-adb connect <fire-tv-ip>
-cd tv && ./gradlew installDebug
-adb shell am start -n com.steady.tv/.MainActivity --es server http://<your-computer-ip>:8787
-```
+### 3. First run
 
-A prebuilt APK is attached to the GitHub release.
+Choose **Set up my household** (or **Try the demo**). Add a person, then **Start session**: scan the QR code with a phone, tap **Start camera**, and prop the phone 2 to 3 meters away. **No phone?** Choose **Demo person**, and press **Menu** during a demo session to act out a fall. On the **Family** tab, scan the QR code with a family member's phone and press **Send a test alert**.
 
-### 3. Phone
-
-Scan the QR code on the TV (phone and computer on the same Wi-Fi), tap **Start camera**, and prop the phone 2 to 3 meters away so it sees you head to feet. Phone browsers only allow the camera on HTTPS or localhost, so for a phone on your LAN, run an HTTPS tunnel (for example `cloudflared tunnel --url http://localhost:8787`) and start the companion with `PUBLIC_URL=https://<tunnel-host>`. A laptop browser at `http://localhost:8787/p/<code>` works as the camera with no setup.
-
-**No phone?** Choose **Demo person** on the TV. Press **Menu** during a demo session to act out a fall and see the safety flow.
-
-**Family page**: open `http://localhost:8787/family`.
-
-**Demo clock**: `DEMO_HOUR=9 npm start` pins the household clock, so the home screen greets and predicts as if it were 9 AM (Maggie's usual time).
-
-**Demo shortcut**: `adb shell am start -n com.steady.tv/.MainActivity --es demo maggie` starts a demo-person session straight away (add `--es exercise CHAIR_STAND_TEST` for a single exercise).
+**Launch options** (`adb shell am start -n com.steady.tv/.MainActivity ...`): `--ei hour 9` pins the household clock for demos; `--es demo maggie [--es exercise CHAIR_STAND_TEST]` opens the demo household and starts a demo session; `--es setup "Ravi,84,m,Priya,daughter"` scripts first-run setup.
 
 ## Remote control
 
@@ -141,8 +132,8 @@ Scan the QR code on the TV (phone and computer on the same Wi-Fi), tap **Start c
 ## Tests
 
 ```bash
-cd tv && ./gradlew testDebugUnitTest      # exercise engine: reps, cues, holds, fall check, CDC norms
-cd companion && npm test                  # progression rules, household prediction, pairing relay, sessions API
+cd tv && ./gradlew testDebugUnitTest      # 17 tests: reps, cues, holds, fall check, CDC norms, plan progression, household prediction, storage
+cd companion && npm test                  # 6 tests: pairing relay, code-guess limiting, coach endpoint validation, family page routing
 ```
 
 ## Safety and scope
@@ -151,4 +142,4 @@ Steady is a coaching and screening aid, not a medical device. It never gives dos
 
 ## License
 
-MIT for the code ([LICENSE](LICENSE)). Atkinson Hyperlegible font © Braille Institute of America, SIL Open Font License ([notices](THIRD_PARTY_NOTICES.md)).
+MIT for the code ([LICENSE](LICENSE)). Inter font, SIL Open Font License ([notices](THIRD_PARTY_NOTICES.md)). Amazon and Fire TV are trademarks of Amazon.com, Inc.; Steady is an independent hackathon project with an Amazon-inspired palette and no Amazon logos.
