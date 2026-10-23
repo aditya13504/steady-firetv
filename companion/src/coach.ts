@@ -85,17 +85,20 @@ export function clean(s: string | undefined): string | undefined {
     .replace(/[‐‑‒]/g, '-')
     .replace(/\s*[–—]\s*/g, ', ')
     .replace(/ /g, ' ')
+    // "Hello Asha! 1. Welcome!": models sometimes copy list numbering from the reasons they were given
+    .replace(/(^|[.!?]\s+)\d{1,2}\.\s+(?=[A-Z])/g, '$1')
     .trim();
 }
 
 const VOICE = `You are Steady, a warm, encouraging exercise coach on a TV for older adults doing a fall-prevention strength and balance programme.
 Speak like a kind physiotherapist: short sentences, plain words, specific numbers, never patronising, never medical advice or diagnosis.
-Celebrate real progress with the actual numbers. If something went badly, be gentle and practical.`;
+Celebrate real progress with the actual numbers. If something went badly, be gentle and practical.
+Numbers mean reps, steps, seconds or chair stands. Describe form in words ("good form", "nice and steady"); never quote percentages, scores or the word "quality", and never say "perfect" or "flawless".`;
 
 export async function intro(req: IntroRequest): Promise<string | null> {
   const out = await chatJson(
     `${VOICE}
-Return JSON: {"intro": "exactly two short sentences the TV says as the session starts. First: a warm hello by name. Second: the first change listed in reasons (they are ordered most important first), with its number."}`,
+Return JSON: {"intro": "exactly two short sentences the TV says as the session starts. First: a warm hello by name. Second: the first item in reasons (they are ordered most important first) in your own words, keeping its reps or seconds. Do not number anything."}`,
     JSON.stringify({ name: req.name, goal: req.goal, plan: req.plan.map(i => `${NAMES[i.id] ?? i.id}: ${i.target}`), reasons: req.reasons })
   );
   return clean(out?.intro) ?? null;
@@ -122,7 +125,7 @@ Only talk about chair stands if today.chairStand exists. If it does, it is the h
       previousSessions: req.previousSessions ?? [],
       ...(hasTest ? { previousChairStand: req.previousChairStand ?? null, chairStandNorm: req.chairStandNorm ?? null } : {}),
       exerciseNames: NAMES,
-      notes: 'quality = % of clean reps (or steadiness 0-100 for balance). cues = how often each form cue fired. skipped = exercise not finished.'
+      notes: 'quality = % of clean reps (or steadiness 0-100 for balance); use it only to judge form, never quote it. cues = how often each form cue fired; if any fired, mention that cue gently as the thing to work on. skipped = exercise not finished.'
     })
   );
   if (!out?.spoken || !out?.summary) return null;

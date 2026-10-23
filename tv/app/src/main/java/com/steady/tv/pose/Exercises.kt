@@ -176,10 +176,25 @@ class HeelRaise(target: Int) : Tracker(Catalog.info(ExerciseId.HEEL_RAISE), targ
     private var up = false
     private var peak = 0f
     private var reps = 0
+    private var straightSince: Long? = null
 
     override fun update(f: PoseFrame) {
         if (state.done) return
         if (!f.visible(Lm.CORE)) return
+        // Standing up out of a chair or a squat also lifts the shoulders. Only count once the legs have been
+        // straight for a moment; until then the baseline follows the shoulders as they finish rising.
+        if (f.visible(Lm.LEGS) && (f.kneeMidY - f.hipMid.y) / f.torso < STRAIGHT_LEGS) {
+            straightSince = null
+            up = false
+            peak = 0f
+            if (baseline == null) state = state.copy(phase = "Stand tall for a moment")
+            return
+        }
+        val settled = f.tMs - (straightSince ?: f.tMs.also { straightSince = it }) >= SETTLE_MS
+        if (!settled) {
+            if (baseline != null) baseline = f.shoulderMid.y else calib.clear()
+            return
+        }
         val y = f.shoulderMid.y
         val base = baseline ?: run {
             calib.add(y)
@@ -208,6 +223,9 @@ class HeelRaise(target: Int) : Tracker(Catalog.info(ExerciseId.HEEL_RAISE), targ
     companion object {
         const val UP = 0.07f
         const val DOWN = 0.03f
+        /** Knee-below-hip over torso: about 0.8 standing tall, 0.2 seated (same signal as sit to stand). */
+        const val STRAIGHT_LEGS = 0.6f
+        const val SETTLE_MS = 1_500L
     }
 }
 
@@ -367,10 +385,20 @@ class FallCheck(private val holdMs: Long = 1_500) {
     private var uprightSince: Long? = null
     var alarm = false
         private set
+    /** False after "I'm OK" until the person has been upright for a moment, so getting up slowly doesn't re-alarm. */
+    private var armed = true
 
     fun feed(f: PoseFrame): Boolean {
         if (!f.visible(Lm.CORE, 0.4f)) return alarm
         val horizontal = f.torsoTiltDeg > 60f || f[Lm.NOSE].y > f.hipMid.y + 0.02f
+        if (!armed) {
+            if (horizontal || f.torsoTiltDeg >= 30f) uprightSince = null
+            else if (f.tMs - (uprightSince ?: f.tMs.also { uprightSince = it }) >= REARM_MS) {
+                armed = true
+                uprightSince = null
+            }
+            return false
+        }
         if (horizontal) {
             uprightSince = null
             val s = since ?: f.tMs.also { since = it }
@@ -385,10 +413,15 @@ class FallCheck(private val holdMs: Long = 1_500) {
         return alarm
     }
 
-    fun clear() {
+    fun clear(waitForUpright: Boolean = false) {
         alarm = false
         since = null
         uprightSince = null
+        armed = !waitForUpright
+    }
+
+    private companion object {
+        const val REARM_MS = 2_000L
     }
 }
 

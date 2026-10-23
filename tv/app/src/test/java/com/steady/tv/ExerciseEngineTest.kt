@@ -4,6 +4,7 @@ import com.steady.tv.pose.ChairStandNorms
 import com.steady.tv.pose.DemoPerson
 import com.steady.tv.pose.ExerciseId
 import com.steady.tv.pose.FallCheck
+import com.steady.tv.pose.HeelRaise
 import com.steady.tv.pose.Motions
 import com.steady.tv.pose.Smoother
 import com.steady.tv.pose.Tracker
@@ -98,6 +99,41 @@ class ExerciseEngineTest {
             t += 66
         }
         assertTrue(check.alarm)
+    }
+
+    @Test fun afterImOkTheFallCheckWaitsUntilTheyAreBackUp() {
+        val person = DemoPerson(ExerciseId.SIT_TO_STAND, sloppyEvery = 0)
+        val check = FallCheck()
+        var t = 0L
+        person.falling = true
+        while (t < 4_000) { check.feed(person.frame(t)); t += 66 }
+        assertTrue(check.alarm)
+
+        // They answer "I'm OK" but stay on the floor for a while: no second alarm.
+        check.clear(waitForUpright = true)
+        val down = t
+        while (t < down + 20_000) {
+            assertFalse("re-alarmed while still getting up at $t ms", check.feed(person.frame(t)))
+            t += 66
+        }
+
+        // Once they are up again, a new fall is caught as usual.
+        person.recover()
+        val up = t
+        while (t < up + 5_000) { check.feed(person.frame(t)); t += 66 }
+        person.falling = true
+        val again = t
+        while (t < again + 4_000) { check.feed(person.frame(t)); t += 66 }
+        assertTrue(check.alarm)
+    }
+
+    @Test fun standingUpIsNotAHeelRaise() {
+        // Found with a real video: rising out of a squat lifted the shoulders and was counted as heel raises.
+        val person = DemoPerson(ExerciseId.SIT_TO_STAND, sloppyEvery = 0)
+        val tracker = HeelRaise(10)
+        var t = 0L
+        while (t < 30_000) { tracker.feed(person.frame(t)); t += 66 }
+        assertEquals(0, tracker.state.reps)
     }
 
     @Test fun cdcNorms() {

@@ -51,6 +51,7 @@ class PoseFrame(val pts: List<Pt>, val tMs: Long, val aspect: Float = 1f) {
     fun mid(a: Int, b: Int) = Pt((pts[a].x + pts[b].x) / 2f, (pts[a].y + pts[b].y) / 2f, minOf(pts[a].v, pts[b].v))
     val shoulderMid get() = mid(Lm.L_SHOULDER, Lm.R_SHOULDER)
     val hipMid get() = mid(Lm.L_HIP, Lm.R_HIP)
+    val kneeMidY: Float get() = (pts[Lm.L_KNEE].y + pts[Lm.R_KNEE].y) / 2f
 
     /** Shoulder-to-hip distance: the body's own ruler, so thresholds work at any distance from the camera. */
     val torso: Float get() = dist(shoulderMid, hipMid).coerceAtLeast(1e-3f)

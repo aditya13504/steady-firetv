@@ -514,7 +514,8 @@ class AppController(
         val a = alert ?: return
         val run = session
         alert = null
-        fallCheck.clear()
+        // They may still be on the floor: only watch for a new fall once they are back up.
+        fallCheck.clear(waitForUpright = a.kind == "fall")
         smoother.reset()
         run?.demoPerson?.recover()
         if (a.kind == "unwell") {

@@ -218,7 +218,8 @@ private fun AgeStepper(age: Int, onChange: (Int) -> Unit) {
 
 @Composable
 private fun Choice(label: String, selected: Boolean, onClick: () -> Unit) {
-    Focusable(onClick, shape = RoundedCornerShape(999.dp), idle = if (selected) C.orange else C.squid, focusedColor = C.white, scaleTo = 1.06f) { focused ->
-        Text(label, style = T.label.copy(color = if (focused || selected) C.onOrange else C.white), modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp))
+    // A selected chip stays orange with a check even while focused, so the choice is visible under the focus ring.
+    Focusable(onClick, shape = RoundedCornerShape(999.dp), idle = if (selected) C.orange else C.squid, focusedColor = if (selected) C.orange else C.white, scaleTo = 1.06f) { focused ->
+        Text(if (selected) "✓  $label" else label, style = T.label.copy(color = if (focused || selected) C.onOrange else C.white), modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp))
     }
 }

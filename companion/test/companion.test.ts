@@ -104,4 +104,5 @@ test('request validation and output cleaning', () => {
   assert.ok(!validIntro({ name: 'Maggie', plan: [{ id: 'DROP TABLE', target: 1 }], reasons: [] }));
   assert.ok(!validSummary({ profile: { name: 'M', age: 'old', sex: 'female' }, today: {} }));
   assert.equal(clean('sit‑to‑stand — great'), 'sit-to-stand, great');
+  assert.equal(clean('Hello Asha! 1. Welcome! Hold for 10 seconds.'), 'Hello Asha! Welcome! Hold for 10 seconds.');
 });

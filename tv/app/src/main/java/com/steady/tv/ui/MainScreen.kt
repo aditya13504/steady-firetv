@@ -214,7 +214,7 @@ private fun ProgressTab(app: AppController) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Stat("Sessions", "${p.history.size}", 0)
-            Stat("This week", "${Coach.streakDays(p)} days", 1)
+            Stat("This week", Coach.streakDays(p).let { if (it == 1) "1 day" else "$it days" }, 1)
             Stat("Last session", p.history.lastOrNull()?.let { df.format(Date(it.at)) } ?: "None yet", 2)
         }
         if (p.history.isEmpty()) {
@@ -227,9 +227,9 @@ private fun ProgressTab(app: AppController) {
             val sts = p.history.mapNotNull { s -> s.results.firstOrNull { it.id == ExerciseId.SIT_TO_STAND && !it.skipped }?.reps }
             val bal = p.history.mapNotNull { s -> s.results.firstOrNull { it.id == ExerciseId.ONE_LEG_STAND }?.bestHoldMs?.takeIf { it > 0 }?.let { (it / 1000).toInt() } }
             val chair = p.history.mapNotNull { it.chairStand }
-            ChartCard("Sit to stand", "reps", sts, null, C.orange, 3, Modifier.weight(1f))
-            ChartCard("One-leg balance", "seconds", bal, 10, C.blue, 4, Modifier.weight(1f))
-            ChartCard("Chair stand check", "stands", chair, ChairStandNorms.threshold(p.age, p.female), C.green, 5, Modifier.weight(1f))
+            ChartCard("Sit to stand", "reps", sts, null, C.orange, 3, Modifier.weight(1f), "Shows up after a sit to stand set.")
+            ChartCard("One-leg balance", "seconds", bal, 10, C.blue, 4, Modifier.weight(1f), "Shows up after a one-leg balance hold.")
+            ChartCard("Chair stand check", "stands", chair, ChairStandNorms.threshold(p.age, p.female), C.green, 5, Modifier.weight(1f), "Shows up after the 30-second chair stand check. It runs every two weeks.")
         }
     }
 }
@@ -245,7 +245,7 @@ private fun Stat(label: String, value: String, index: Int) {
 }
 
 @Composable
-private fun ChartCard(title: String, unit: String, values: List<Int>, line: Int?, color: Color, index: Int, modifier: Modifier) {
+private fun ChartCard(title: String, unit: String, values: List<Int>, line: Int?, color: Color, index: Int, modifier: Modifier, empty: String) {
     val draw = remember(values) { Animatable(0f) }
     LaunchedEffect(values) { draw.animateTo(1f, tween(1_100, delayMillis = 120 * index, easing = M.emphasized)) }
     Panel(modifier.fillMaxHeight().appear(index)) {
@@ -259,12 +259,19 @@ private fun ChartCard(title: String, unit: String, values: List<Int>, line: Int?
                     Text(if (d >= 0) "+$d" else "$d", style = T.small.copy(color = if (d >= 0) C.green else C.orange), modifier = Modifier.padding(bottom = 6.dp))
                 }
             }
+            if (values.isEmpty()) {
+                // Nothing measured yet: say how to get a chart instead of showing an empty frame.
+                Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.CenterStart) {
+                    Text(empty, style = T.body.copy(color = C.muted))
+                }
+                return@Column
+            }
             Canvas(Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp)) {
-                if (values.isEmpty()) return@Canvas
                 val lo = minOf(values.min(), line ?: values.min()).toFloat() - 1
                 val hi = maxOf(values.max(), line ?: values.max()).toFloat() + 1
                 fun y(v: Float) = size.height - (v - lo) / (hi - lo) * size.height
                 val step = if (values.size > 1) size.width / (values.size - 1) else 0f
+                val x0 = if (values.size == 1) size.width / 2 else 0f
                 line?.let {
                     drawLine(C.muted.copy(alpha = 0.7f), Offset(0f, y(it.toFloat())), Offset(size.width, y(it.toFloat())), strokeWidth = 3f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f)))
                 }
@@ -275,7 +282,7 @@ private fun ChartCard(title: String, unit: String, values: List<Int>, line: Int?
                 m.getSegment(0f, m.length * draw.value, part, true)
                 drawPath(part, color, style = Stroke(width = 7f, cap = StrokeCap.Round))
                 values.forEachIndexed { i, v ->
-                    if (values.size == 1 || i * step <= size.width * draw.value + 1) drawCircle(color, radius = if (i == values.lastIndex) 11f else 7f, center = Offset(i * step, y(v.toFloat())))
+                    if (values.size == 1 || i * step <= size.width * draw.value + 1) drawCircle(color, radius = if (i == values.lastIndex) 11f else 7f, center = Offset(x0 + i * step, y(v.toFloat())))
                 }
             }
             if (line != null) Text(if (unit == "stands") "Dashed line: usual for this age (CDC)" else "Dashed line: today's target", style = T.small.copy(fontSize = 14.sp))
