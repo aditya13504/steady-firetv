@@ -84,7 +84,9 @@ flowchart LR
 
 ### 1. Companion server
 
-**Cloud (one click):** [Deploy to Render](https://render.com/deploy?repo=https://github.com/aditya13504/steady-firetv). The blueprint (`render.yaml`) builds `companion/Dockerfile` and asks for `LLM_API_KEY`. Render serves it over HTTPS, which phones need for the camera.
+**Hosted:** a public companion runs at https://steady-companion.onrender.com, and the app uses it by default. The free instance sleeps when idle, so the first pairing can take about 30 seconds.
+
+**Your own cloud (one click):** [Deploy to Render](https://render.com/deploy?repo=https://github.com/aditya13504/steady-firetv). The blueprint (`render.yaml`) builds `companion/Dockerfile` and asks for `LLM_API_KEY`. Render serves it over HTTPS, which phones need for the camera.
 
 **Local:**
 
@@ -111,11 +113,11 @@ LLM_API_KEY=gsk_...
 sdkmanager "system-images;android-30;android-tv;x86"
 avdmanager create avd -n FireTV_API30 -k "system-images;android-30;android-tv;x86" -d tv_1080p
 emulator -avd FireTV_API30 &
-cd tv && ./gradlew installDebug          # add -PsteadyCloud=https://<your-companion-url> to default to a cloud companion
+cd tv && ./gradlew installDebug          # -PsteadyCloud=https://<your-companion-url> to use your own companion
 adb shell am start -n com.steady.tv/.MainActivity
 ```
 
-Without a cloud address the emulator uses the companion on your computer (`http://10.0.2.2:8787`). **Settings → Steady server** switches between them.
+The app starts on the hosted companion. **Settings → Steady server → This computer** switches the emulator to a companion on your computer (`http://10.0.2.2:8787`); use `npm run tunnel` there so phones still get HTTPS.
 
 **Real Fire TV**: enable *Developer options → ADB debugging*, then `adb connect <fire-tv-ip>`, install the APK from the [release](https://github.com/aditya13504/steady-firetv/releases), and optionally `adb shell am start -n com.steady.tv/.MainActivity --es server https://<companion-url>`.
 

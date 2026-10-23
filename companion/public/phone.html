@@ -110,7 +110,24 @@ function showState(m) {
 
 // ---------------------------------------------------------------- camera + pose
 
+// Browsers only expose the camera on https:// (or localhost); a plain http:// LAN link has no navigator.mediaDevices.
+const cameraBlocked = !window.isSecureContext || !navigator.mediaDevices?.getUserMedia;
+if (cameraBlocked) {
+  $('overlay-text').textContent = 'This link isn’t secure (http), so your browser won’t share the camera. On the TV, open Settings → Steady server, choose Steady Cloud, then scan the new code.';
+  $('start').hidden = true;
+}
+
+function cameraError(err) {
+  switch (err?.name) {
+    case 'NotAllowedError': return 'Camera access was blocked. Tap the icon left of the address, allow Camera, then tap Start camera again.';
+    case 'NotFoundError': return 'No camera was found on this device.';
+    case 'NotReadableError': return 'Another app is using the camera. Close it, then tap Start camera again.';
+    default: return `Camera problem: ${err?.message ?? err}. Reload the page and try again.`;
+  }
+}
+
 $('start').onclick = async () => {
+  if (cameraBlocked) return;
   $('start').disabled = true;
   $('overlay-text').textContent = 'Loading the body tracker…';
   try {
@@ -130,7 +147,7 @@ $('start').onclick = async () => {
     requestAnimationFrame(loop);
   } catch (err) {
     $('start').disabled = false;
-    $('overlay-text').textContent = `Camera problem: ${err.message}. Allow camera access and try again.`;
+    $('overlay-text').textContent = cameraError(err);
   }
 };
 

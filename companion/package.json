@@ -2,7 +2,7 @@
   "name": "steady-companion",
   "version": "1.0.0",
   "scripts": {
-    "test": "tsx --test test/*.test.ts",
+    "test": "tsx --test test/companion.test.ts",
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
     "typecheck": "tsc --noEmit",
