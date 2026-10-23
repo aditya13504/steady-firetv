@@ -315,6 +315,14 @@ class AppController(
         if (pairing.phoneConnected) startSession(p, pendingItems!!, demo = false) else screen = Screen.PAIR
     }
 
+    /** Launch shortcut for recordings: `--es session "SIT_TO_STAND:5,ARM_CURL:6"` runs exactly these, live with the phone. */
+    fun beginCustom(items: List<PlanItem>) {
+        val p = selected ?: return
+        if (items.isEmpty()) return
+        pendingItems = items
+        if (pairing.phoneConnected) startSession(p, items, demo = false) else screen = Screen.PAIR
+    }
+
     fun startDemo() {
         val p = selected ?: return
         startSession(p, pendingItems ?: plan?.items ?: return, demo = true)
@@ -337,7 +345,8 @@ class AppController(
         session = run
         summary = null
         smoother.reset()
-        fallCheck.clear()
+        // Setting up the phone means bending and crouching near the floor: watch for falls once they have stood up in view.
+        fallCheck.clear(waitForUpright = true)
         screen = Screen.SESSION
         enterIntro(run, first = true)
     }
@@ -553,7 +562,7 @@ class AppController(
         }
         val run = session ?: return
         when (run.stage) {
-            Stage.INTRO, Stage.REST -> run.stageUntil = 0
+            Stage.INTRO, Stage.REST -> { run.paused = false; run.stageUntil = 0 }
             Stage.ACTIVE -> togglePause(run)
             Stage.DONE -> Unit
         }
@@ -564,7 +573,7 @@ class AppController(
         if (alert != null) return
         when (run.stage) {
             Stage.ACTIVE -> finishExercise(run, skipped = run.tracker.state.reps < run.tracker.target)
-            Stage.INTRO, Stage.REST -> run.stageUntil = 0
+            Stage.INTRO, Stage.REST -> { run.paused = false; run.stageUntil = 0 }
             Stage.DONE -> Unit
         }
     }

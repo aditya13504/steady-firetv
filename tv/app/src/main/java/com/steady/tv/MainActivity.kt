@@ -56,6 +56,19 @@ class MainActivity : ComponentActivity() {
                 app.addPerson(f[0], f[1].toInt(), f[2].startsWith("f"), "", f.getOrNull(3), f.getOrNull(4), conditions)
             }
         }
+        intent.getStringExtra("session")?.let { spec ->
+            val items = spec.split(",").mapNotNull { part ->
+                val kv = part.split(":")
+                runCatching { ExerciseId.valueOf(kv[0].trim()) }.getOrNull()?.let { id ->
+                    com.steady.tv.data.PlanItem(id, kv.getOrNull(1)?.trim()?.toIntOrNull() ?: com.steady.tv.pose.Catalog.info(id).defaultTarget)
+                }
+            }
+            lifecycleScope.launch {
+                kotlinx.coroutines.delay(AppController.SPLASH_MS + 400)
+                if (app.household == null) app.exploreDemo()
+                app.beginCustom(items)
+            }
+        }
         intent.getStringExtra("demo")?.let { person ->
             app.autoDemo(person, intent.getStringExtra("exercise")?.let { runCatching { ExerciseId.valueOf(it) }.getOrNull() })
         }
