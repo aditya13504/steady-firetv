@@ -5,7 +5,22 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-enum class ExerciseId { MARCH, SIT_TO_STAND, HEEL_RAISE, SIDE_LEG_RAISE, ONE_LEG_STAND, CHAIR_STAND_TEST }
+enum class ExerciseId {
+    MARCH, SIT_TO_STAND, HEEL_RAISE, SIDE_LEG_RAISE, ONE_LEG_STAND, CHAIR_STAND_TEST,
+    // leg strength
+    MINI_SQUAT, HANDS_ASSISTED_STAND, ARMS_CROSSED_STAND, SEATED_KNEE_EXTENSION, STANDING_KNEE_CURL, SEATED_MARCH, SEATED_KNEES_OUT, SIDE_STEP,
+    // arms and shoulders
+    FRONT_ARM_RAISE, SIDE_ARM_RAISE, ARM_CURL, OVERHEAD_REACH, SHOULDER_SHRUG,
+    // balance
+    FEET_TOGETHER, TANDEM_STANCE, WEIGHT_SHIFT, KNEE_LIFT_HOLD,
+    // mobility and moving
+    HEAD_TURN, SIDE_BEND, TRUNK_TWIST, HIP_HINGE, SEATED_JACKS
+}
+
+/** How the library groups exercises, in the order the rows appear. */
+enum class Category(val title: String) {
+    STRENGTH("Leg strength"), BALANCE("Balance"), ARMS("Arms and shoulders"), MOBILITY("Mobility and stretching"), MOVE("Get moving"), CHECK("Health check")
+}
 
 enum class Kind { REPS, HOLD, TIMED_TEST }
 
@@ -18,18 +33,23 @@ data class ExerciseInfo(
     val defaultTarget: Int,
     val unit: String,
     val usesChair: Boolean,
-    val benefit: String
+    val benefit: String,
+    val category: Category = Category.STRENGTH,
+    /** Done sitting on the chair (the coach is drawn seated in front of it). */
+    val sit: Boolean = false,
+    /** For holds: seconds each hold should last. */
+    val holdSeconds: Int = 10
 )
 
 object Catalog {
     val all = listOf(
-        ExerciseInfo(ExerciseId.MARCH, "Standing march", "Hold the back of a chair. Lift one knee, then the other.", Kind.REPS, 20, "steps", true, "Warms up hips and gets you walking taller."),
-        ExerciseInfo(ExerciseId.SIT_TO_STAND, "Sit to stand", "Sit near the front of the chair. Lean forward and stand all the way up, then sit back down slowly.", Kind.REPS, 10, "stands", true, "Builds the leg strength you use every time you get up."),
-        ExerciseInfo(ExerciseId.HEEL_RAISE, "Heel raises", "Hold the chair. Rise up onto your toes, then lower slowly.", Kind.REPS, 10, "raises", true, "Strong calves help you catch a stumble."),
-        ExerciseInfo(ExerciseId.SIDE_LEG_RAISE, "Side leg raise", "Hold the chair. Lift one leg out to the side, keep your body tall, and lower it.", Kind.REPS, 10, "lifts", true, "Hip strength keeps you steady side to side."),
-        ExerciseInfo(ExerciseId.ONE_LEG_STAND, "One-leg balance", "Hold the chair lightly. Lift one foot and hold for 10 seconds. Then switch.", Kind.HOLD, 2, "holds", true, "Balance is the skill that prevents falls."),
-        ExerciseInfo(ExerciseId.CHAIR_STAND_TEST, "30-second chair stand", "Cross your arms over your chest. Stand up and sit down as many times as you can in 30 seconds.", Kind.TIMED_TEST, 30, "seconds", true, "The CDC's check of leg strength and fall risk.")
-    )
+        ExerciseInfo(ExerciseId.MARCH, "Standing march", "Hold the back of a chair. Lift one knee, then the other.", Kind.REPS, 20, "steps", true, "Warms up hips and gets you walking taller.", Category.MOVE),
+        ExerciseInfo(ExerciseId.SIT_TO_STAND, "Sit to stand", "Sit near the front of the chair. Lean forward and stand all the way up, then sit back down slowly.", Kind.REPS, 10, "stands", true, "Builds the leg strength you use every time you get up.", Category.STRENGTH, sit = true),
+        ExerciseInfo(ExerciseId.HEEL_RAISE, "Heel raises", "Hold the chair. Rise up onto your toes, then lower slowly.", Kind.REPS, 10, "raises", true, "Strong calves help you catch a stumble.", Category.STRENGTH),
+        ExerciseInfo(ExerciseId.SIDE_LEG_RAISE, "Side leg raise", "Hold the chair. Lift one leg out to the side, keep your body tall, and lower it.", Kind.REPS, 10, "lifts", true, "Hip strength keeps you steady side to side.", Category.STRENGTH),
+        ExerciseInfo(ExerciseId.ONE_LEG_STAND, "One-leg balance", "Hold the chair lightly. Lift one foot and hold for 10 seconds. Then switch.", Kind.HOLD, 2, "holds", true, "Balance is the skill that prevents falls.", Category.BALANCE),
+        ExerciseInfo(ExerciseId.CHAIR_STAND_TEST, "30-second chair stand", "Cross your arms over your chest. Stand up and sit down as many times as you can in 30 seconds.", Kind.TIMED_TEST, 30, "seconds", true, "The CDC's check of leg strength and fall risk.", Category.CHECK, sit = true)
+    ) + MoreExercises.all
 
     fun info(id: ExerciseId) = all.first { it.id == id }
 }
@@ -101,6 +121,8 @@ abstract class Tracker(val info: ExerciseInfo, var target: Int) {
             ExerciseId.MARCH -> March(target)
             ExerciseId.SIDE_LEG_RAISE -> SideLegRaise(target)
             ExerciseId.ONE_LEG_STAND -> OneLegStand(target)
+            ExerciseId.HANDS_ASSISTED_STAND, ExerciseId.ARMS_CROSSED_STAND -> SitToStand(Catalog.info(id), target, timeLimitMs = null)
+            else -> MoreExercises.tracker(id, target)
         }
     }
 }
@@ -251,8 +273,10 @@ class March(target: Int) : Tracker(Catalog.info(ExerciseId.MARCH), target) {
         var progress = 0f
         for ((side, d) in listOf(0 to l, 1 to r)) {
             val ratio = d / t
+            // One knee at a time: when both "lift" together it's a squat or a sit, not a step.
+            val otherDown = (if (side == 0) r else l) / t > DOWN
             progress = max(progress, ((1f - ratio) / 0.4f).coerceIn(0f, 1f))
-            if (!lifted[side] && ratio < LIFT) {
+            if (!lifted[side] && ratio < LIFT && otherDown) {
                 lifted[side] = true
                 reps++
                 rep()

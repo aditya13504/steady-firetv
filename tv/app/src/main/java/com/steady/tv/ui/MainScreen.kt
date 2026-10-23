@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -54,8 +55,11 @@ import com.steady.tv.AppController
 import com.steady.tv.BuildConfig
 import com.steady.tv.Tab
 import com.steady.tv.data.Coach
+import com.steady.tv.data.Health
 import com.steady.tv.data.Person
 import com.steady.tv.pose.Catalog
+import com.steady.tv.pose.Category
+import com.steady.tv.pose.Kind
 import com.steady.tv.pose.ChairStandNorms
 import com.steady.tv.pose.ExerciseId
 import java.text.SimpleDateFormat
@@ -164,18 +168,21 @@ private fun PersonChip(p: Person, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ExerciseCard(id: ExerciseId, detail: String, index: Int, modifier: Modifier, onClick: () -> Unit) {
+private fun ExerciseCard(id: ExerciseId, detail: String, index: Int, modifier: Modifier, blockedBy: String? = null, onClick: () -> Unit) {
     val info = Catalog.info(id)
     var focused by remember { mutableStateOf(false) }
     Focusable(onClick, modifier.fillMaxHeight().appear(index).onFocusChanged { focused = it.isFocused }, idle = C.squid, focusedColor = C.squidHi) { f ->
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(118.dp).clip(RoundedCornerShape(12.dp)).background(C.ink), contentAlignment = Alignment.Center) {
+        val dim = if (blockedBy != null && !f) 0.4f else 1f
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(width = 96.dp, height = 118.dp).alpha(dim).clip(RoundedCornerShape(12.dp)).background(C.ink), contentAlignment = Alignment.Center) {
                 CoachFigure(id, Modifier.fillMaxSize(), playing = focused)
+                if (info.sit) Text("Seated", style = T.small.copy(fontSize = 12.sp, color = C.blue), modifier = Modifier.align(Alignment.TopStart).padding(6.dp))
             }
-            Column(Modifier.padding(start = 14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(info.title, style = T.label, maxLines = 2)
-                Text(detail, style = T.small.copy(color = C.orange))
-                if (f) Text(info.benefit, style = T.small.copy(fontSize = 15.sp, lineHeight = 19.sp), maxLines = 3, overflow = TextOverflow.Ellipsis)
+            Column(Modifier.padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(info.title, style = T.label.copy(fontSize = 18.sp, lineHeight = 22.sp), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.alpha(dim))
+                if (blockedBy != null) Text("⊘  Not advised: ${blockedBy.lowercase()}", style = T.small.copy(color = Color(0xFFFF6B81), fontSize = 14.sp), maxLines = 2)
+                else Text(detail, style = T.small.copy(color = C.orange, fontSize = 16.sp))
+                if (f) Text(info.benefit, style = T.small.copy(fontSize = 14.sp, lineHeight = 18.sp), maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -183,17 +190,51 @@ private fun ExerciseCard(id: ExerciseId, detail: String, index: Int, modifier: M
 
 // -------------------------------------------------------------------------------------- exercises
 
+/** Fire TV style rows: today's plan first, then one row per kind of exercise. Moves ruled out by health are dimmed with the reason. */
 @Composable
 private fun ExercisesTab(app: AppController) {
     val p = app.selected ?: return
-    Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Exercise library", style = T.display, modifier = Modifier.appear(0))
-        Text("Pick one to practise on its own. Targets are set for ${p.name}.", style = T.small, modifier = Modifier.appear(1))
-        for (row in Catalog.all.chunked(3)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                for ((i, info) in row.withIndex()) {
-                    val target = app.plan?.items?.firstOrNull { it.id == info.id }?.target ?: Coach.startingTarget(info.id, p.age)
-                    ExerciseCard(info.id, if (info.id == ExerciseId.CHAIR_STAND_TEST) "30 seconds" else "$target ${info.unit}", i + 2, Modifier.weight(1f).height(170.dp)) { app.begin(info.id) }
+    val planIds = app.plan?.items?.map { it.id }.orEmpty()
+    fun detail(id: ExerciseId): String {
+        val info = Catalog.info(id)
+        val target = app.plan?.items?.firstOrNull { it.id == id }?.target ?: Coach.startingTarget(id, p.age, p.conditions)
+        return when (info.kind) {
+            Kind.TIMED_TEST -> "30 seconds"
+            Kind.HOLD -> "$target × ${info.holdSeconds} s"
+            Kind.REPS -> "$target ${info.unit}"
+        }
+    }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 48.dp).padding(top = 14.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.appear(0)) {
+            Text("Exercise library", style = T.display)
+            Badge("${Catalog.all.size} moves")
+        }
+        Text(
+            if (p.conditions.isEmpty()) "Pick any move to practise on its own. Targets are set for ${p.name}."
+            else "Tuned for ${p.name}: planning around ${p.conditions.joinToString(", ") { it.label.lowercase() }}. Dimmed moves aren't advised.",
+            style = T.small, modifier = Modifier.appear(1)
+        )
+        LibraryRow("In today's plan", planIds, app, p, 2, ::detail)
+        for ((i, cat) in Category.entries.withIndex()) {
+            LibraryRow(cat.title, Catalog.all.filter { it.category == cat }.map { it.id }, app, p, 3 + i, ::detail)
+        }
+    }
+}
+
+@Composable
+private fun LibraryRow(title: String, ids: List<ExerciseId>, app: AppController, p: Person, index: Int, detail: (ExerciseId) -> String) {
+    if (ids.isEmpty()) return
+    Column(Modifier.appear(index), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(title, style = T.title.copy(fontSize = 23.sp))
+            Text("${ids.size}", style = T.small.copy(color = C.orange))
+        }
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.height(150.dp)) {
+            itemsIndexed(ids) { i, id ->
+                val blocked = Health.whyNot(p.conditions, id)
+                ExerciseCard(id, detail(id), i, Modifier.width(290.dp), blockedBy = blocked?.label) {
+                    if (blocked != null) app.flash("Steady leaves this out because of ${blocked.label.lowercase()}. Ask your physio if it's right for you.")
+                    else app.begin(id)
                 }
             }
         }
@@ -337,6 +378,13 @@ private fun SettingsTab(app: AppController) {
             for (p in h.people) PersonChip(p, p.id == app.selectedId) { app.select(p) }
             TvButton("Add a person", { app.startSetup() }, icon = "+")
         }
+        app.selected?.let { p ->
+            Column(Modifier.fillMaxWidth().appear(1), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("${p.name}'s health", style = T.heading)
+                Text("Today's plan changes straight away: moves that aren't advised are left out and safer ones swapped in.", style = T.small)
+                HealthChips(p.conditions) { app.setConditions(p.id, it) }
+            }
+        }
         SettingRow("Coach voice", if (app.voiceOn) "Spoken counts and cues are on" else "Muted", 2) {
             TvButton(if (app.voiceOn) "Turn off" else "Turn on", { app.toggleVoice() })
         }
@@ -351,9 +399,9 @@ private fun SettingsTab(app: AppController) {
         }
         Panel(Modifier.fillMaxWidth().appear(5)) {
             Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("About Steady ${BuildConfig.VERSION_NAME}", style = T.heading)
+                Text("About Amazon Steady ${BuildConfig.VERSION_NAME}", style = T.heading)
                 Text("Steady is a coaching and screening aid, not a medical device. It never gives dosing or diagnostic advice. If you feel dizzy, faint or have chest pain, stop and call 911.", style = T.small)
-                Text("Video never leaves your phone. Exercise history is stored on this TV. Coaching requests send only the numbers needed, and the server keeps nothing.", style = T.small)
+                Text("Pose tracking runs on your phone. Its camera picture is shown on this TV only while you allow it, and is never recorded or stored. Exercise history stays on this TV; coaching requests send only the numbers needed, and the server keeps nothing.", style = T.small)
             }
         }
     }

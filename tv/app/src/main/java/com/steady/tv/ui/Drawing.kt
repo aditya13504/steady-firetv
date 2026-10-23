@@ -19,6 +19,10 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
@@ -70,8 +74,9 @@ fun CoachFigure(id: ExerciseId, modifier: Modifier = Modifier, playing: Boolean 
         val start = withFrameMillis { it } - t
         while (playing) withFrameMillis { t = it - start }
     }
-    val chair = id == ExerciseId.SIT_TO_STAND || id == ExerciseId.CHAIR_STAND_TEST
-    val holdChair = !chair
+    val info = remember(id) { com.steady.tv.pose.Catalog.info(id) }
+    val chair = info.sit
+    val holdChair = !chair && info.usesChair
     Canvas(modifier) {
         val fit = Fit(size, 1f, mirror = true)
         val fig = motion.at(t)
@@ -102,6 +107,30 @@ fun MirrorSkeleton(frame: PoseFrame?, modifier: Modifier = Modifier, dim: Boolea
         val fit = Fit(size, f.aspect, mirror = true, pad = 0.02f)
         val color = if (dim) C.muted else C.blue
         bones({ f[it] }, fit, color, C.white, fit.unit * 0.022f)
+    }
+}
+
+/** The phone's live picture, mirrored like the skeleton, with the tracked body lines and joints drawn over it. */
+@Composable
+fun CameraView(image: ImageBitmap, frame: PoseFrame?, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val aspect = image.width.toFloat() / image.height
+        val fit = Fit(size, aspect, mirror = true, pad = 0f)
+        val w = (aspect * fit.unit).toInt()
+        val h = fit.unit.toInt()
+        withTransform({ scale(-1f, 1f, pivot = Offset(size.width / 2f, size.height / 2f)) }) {
+            drawImage(image, dstOffset = IntOffset(((size.width - w) / 2f).toInt(), ((size.height - h) / 2f).toInt()), dstSize = IntSize(w, h))
+        }
+        val f = frame ?: return@Canvas
+        val pts: (Int) -> Pt = { f[it] }
+        for ((a, b) in Lm.BONES) {
+            drawLine(Color.Black.copy(alpha = 0.35f), fit.o(pts(a)), fit.o(pts(b)), strokeWidth = fit.unit * 0.022f, cap = StrokeCap.Round)
+            drawLine(C.orange, fit.o(pts(a)), fit.o(pts(b)), strokeWidth = fit.unit * 0.012f, cap = StrokeCap.Round)
+        }
+        for (i in Lm.CORE + Lm.LEGS + listOf(Lm.L_ELBOW, Lm.R_ELBOW, Lm.L_WRIST, Lm.R_WRIST, Lm.NOSE)) {
+            drawCircle(C.white, radius = fit.unit * 0.014f, center = fit.o(pts(i)))
+            drawCircle(C.blue, radius = fit.unit * 0.014f, center = fit.o(pts(i)), style = Stroke(fit.unit * 0.006f))
+        }
     }
 }
 

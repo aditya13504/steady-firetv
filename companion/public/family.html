@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#232f3e">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%23232f3e%27/%3E%3Ccircle cx=%2732%27 cy=%2716%27 r=%276%27 fill=%27%23ff9900%27/%3E%3Cpath d=%27M32 26v24M20 28l12 2 12-2M14 54h36%27 stroke=%27%23fff%27 stroke-width=%275%27 stroke-linecap=%27round%27 fill=%27none%27/%3E%3C/svg%3E">
-<title>Steady family updates</title>
+<title>Amazon Steady family updates</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
@@ -42,7 +42,7 @@
 </style>
 </head>
 <body>
-  <header><b>steady</b><span><i class="live" id="live"></i><em id="status" style="font-style:normal">Connecting…</em></span></header>
+  <header><b><small style="color:#ff9900;font-size:15px;font-weight:600;margin-right:6px">amazon</small>steady</b><span><i class="live" id="live"></i><em id="status" style="font-style:normal">Connecting…</em></span></header>
   <div class="sub">Family updates: session summaries and urgent safety alerts.</div>
   <main>
     <section class="card">
@@ -83,12 +83,12 @@ function render(m, fresh) {
   const ok = (m.tags || []).includes('white_check_mark');
   const el = document.createElement('article');
   el.className = 'msg' + (urgent ? ' alert' : ok ? ' ok' : '');
-  const b = document.createElement('b'); b.textContent = m.title || 'Steady';
+  const b = document.createElement('b'); b.textContent = m.title || 'Amazon Steady';
   const p = document.createElement('div'); p.textContent = m.message || '';
   const t = document.createElement('time'); t.textContent = new Date(m.time * 1000).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
   el.append(b, p, t);
   $('feed').prepend(el);
-  if (fresh && 'Notification' in window && Notification.permission === 'granted') new Notification(m.title || 'Steady', { body: m.message, requireInteraction: urgent });
+  if (fresh && 'Notification' in window && Notification.permission === 'granted') new Notification(m.title || 'Amazon Steady', { body: m.message, requireInteraction: urgent });
   if (fresh && urgent && navigator.vibrate) navigator.vibrate([300, 150, 300]);
 }
 

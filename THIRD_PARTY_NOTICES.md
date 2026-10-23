@@ -5,3 +5,7 @@
 - **MediaPipe Tasks Vision** and the Pose Landmarker Lite model, loaded by the phone page from jsDelivr and Google Cloud Storage at runtime. Apache License 2.0.
 - **ZXing** (QR codes), **OkHttp**, **AndroidX / Jetpack Compose for TV**: Apache License 2.0.
 - **ws**, **express**, **qrcode** (companion): MIT.
+
+## Screenshots
+
+`docs/images/session.png` shows a frame from a free stock video from [Mixkit](https://mixkit.co/) (Mixkit License), used to test the live camera panel with real footage.

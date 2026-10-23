@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.steady.tv.AppController
+import com.steady.tv.data.Condition
 
 @Composable
 fun SplashScreen() {
@@ -61,7 +62,11 @@ fun SplashScreen() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             LogoMark(Modifier.size(180.dp), progress = draw.value)
             Text(
-                "steady", style = T.hero.copy(fontSize = 64.sp),
+                "amazon", style = T.heading.copy(color = C.orange, fontSize = 28.sp, letterSpacing = 1.sp),
+                modifier = Modifier.graphicsLayer { alpha = word.value; translationY = (1 - word.value) * 16f }
+            )
+            Text(
+                "steady", style = T.hero.copy(fontSize = 64.sp, lineHeight = 66.sp),
                 modifier = Modifier.graphicsLayer { alpha = word.value; translationY = (1 - word.value) * 24f }
             )
             Text(
@@ -83,7 +88,7 @@ fun WelcomeScreen(app: AppController) {
                 Wordmark(Modifier.appear(0))
                 Text("Stay steady\non your feet.", style = T.hero, modifier = Modifier.appear(1))
                 Text(
-                    "A coach on your TV for the strength and balance exercises that prevent falls. Your phone is the camera. Your video never leaves it.",
+                    "A coach on your TV for the strength and balance exercises that prevent falls. Your phone is the camera, and nothing is ever recorded.",
                     style = T.body.copy(color = C.muted), modifier = Modifier.appear(2)
                 )
                 Spacer(Modifier.height(10.dp))
@@ -111,6 +116,7 @@ fun SetupScreen(app: AppController) {
     var goal by remember { mutableStateOf("") }
     var family by remember { mutableStateOf(if (adding) "" else "") }
     var relation by remember { mutableStateOf<String?>(null) }
+    var conditions by remember { mutableStateOf(setOf<Condition>()) }
     var error by remember { mutableStateOf<String?>(null) }
     val nameFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { nameFocus.requestFocus() } }
@@ -133,6 +139,10 @@ fun SetupScreen(app: AppController) {
                         Choice("Man", female == false) { female = false }
                     }
                 }
+                Field("Anything Steady should plan around? Choose any that apply (optional)") {
+                    HealthChips(conditions) { conditions = it }
+                }
+                Text("Steady leaves out moves that aren't advised for these, swaps in safer ones and starts gentler. Check with your doctor or physio before starting.", style = T.small.copy(fontSize = 16.sp))
                 Field("What would they like to do with more confidence? (optional)") { TvTextField(goal, { goal = it }, "Walk to the market without worrying about falling") }
                 if (!adding || app.household?.hasFamily != true) {
                     Field("Family member who gets alerts (optional)") { TvTextField(family, { family = it }, "Daniel") }
@@ -146,7 +156,7 @@ fun SetupScreen(app: AppController) {
                         when {
                             name.isBlank() -> error = "Add a first name to continue."
                             female == null -> error = "Choose woman or man, so the strength check uses the right norms."
-                            else -> app.addPerson(name, age, female!!, goal, family.ifBlank { null }, relation)
+                            else -> app.addPerson(name, age, female!!, goal, family.ifBlank { null }, relation, conditions)
                         }
                     }, primary = true)
                     TvButton("Back", { app.backToHome() })
@@ -212,6 +222,16 @@ private fun AgeStepper(age: Int, onChange: (Int) -> Unit) {
             Text("$age", style = T.display.copy(fontSize = 34.sp), modifier = Modifier.width(64.dp))
             Text("▶", style = T.heading.copy(color = if (focused) C.orange else C.muted))
             Text(if (focused) "Use left and right to change" else "", style = T.small)
+        }
+    }
+}
+
+/** Multi-select health conditions, three to a row. */
+@Composable
+fun HealthChips(selected: Set<Condition>, onChange: (Set<Condition>) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        for (row in Condition.entries.chunked(3)) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            for (c in row) Choice(c.label, c in selected) { onChange(if (c in selected) selected - c else selected + c) }
         }
     }
 }

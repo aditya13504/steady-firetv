@@ -4,16 +4,37 @@
  * It is stateless: nothing a request contains is stored.
  */
 
-export type ExerciseId = 'MARCH' | 'SIT_TO_STAND' | 'HEEL_RAISE' | 'SIDE_LEG_RAISE' | 'ONE_LEG_STAND' | 'CHAIR_STAND_TEST';
-
-export const NAMES: Record<ExerciseId, string> = {
+export const NAMES = {
   MARCH: 'standing march',
   SIT_TO_STAND: 'sit to stand',
   HEEL_RAISE: 'heel raises',
   SIDE_LEG_RAISE: 'side leg raises',
   ONE_LEG_STAND: 'one-leg balance',
-  CHAIR_STAND_TEST: '30-second chair stand'
-};
+  CHAIR_STAND_TEST: '30-second chair stand',
+  MINI_SQUAT: 'mini squats',
+  HANDS_ASSISTED_STAND: 'sit to stand with hands helping',
+  ARMS_CROSSED_STAND: 'sit to stand with arms crossed',
+  SEATED_KNEE_EXTENSION: 'seated knee straightening',
+  STANDING_KNEE_CURL: 'standing knee bends',
+  SEATED_MARCH: 'seated march',
+  SEATED_KNEES_OUT: 'seated knee opens',
+  SIDE_STEP: 'side steps',
+  FRONT_ARM_RAISE: 'front arm raises',
+  SIDE_ARM_RAISE: 'side arm raises',
+  ARM_CURL: 'arm curls',
+  OVERHEAD_REACH: 'overhead reach',
+  SHOULDER_SHRUG: 'shoulder shrugs',
+  FEET_TOGETHER: 'feet together stand',
+  TANDEM_STANCE: 'heel-to-toe stand',
+  WEIGHT_SHIFT: 'side to side sway',
+  KNEE_LIFT_HOLD: 'knee lift and hold',
+  HEAD_TURN: 'head turns',
+  SIDE_BEND: 'side bends',
+  TRUNK_TWIST: 'seated twists',
+  HIP_HINGE: 'hip hinges',
+  SEATED_JACKS: 'seated jacks'
+} as const;
+export type ExerciseId = keyof typeof NAMES;
 
 export interface IntroRequest {
   name: string;
@@ -147,7 +168,7 @@ export function validIntro(b: unknown): b is IntroRequest {
   const r = b as IntroRequest;
   return (
     !!r && str(r.name, 60) && (r.goal === undefined || str(r.goal, 300)) && Array.isArray(r.plan) && r.plan.length <= 10 &&
-    r.plan.every(i => IDS.has(i?.id) && Number.isFinite(i?.target)) && Array.isArray(r.reasons) && r.reasons.length <= 10 && r.reasons.every(x => str(x, 400))
+    r.plan.every(i => IDS.has(i?.id) && Number.isFinite(i?.target)) && Array.isArray(r.reasons) && r.reasons.length <= 20 && r.reasons.every(x => str(x, 400))
   );
 }
 

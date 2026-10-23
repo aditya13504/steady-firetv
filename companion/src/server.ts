@@ -131,7 +131,12 @@ wss.on('connection', (ws, req) => {
     room.lastSeen = Date.now();
     send(ws, { t: 'hello', code });
     send(room.tv, { t: 'phone', connected: true });
-    ws.on('message', data => send(room.tv, data.toString()));
+    ws.on('message', data => {
+      const msg = data.toString();
+      // Camera pictures are only for watching live: drop them rather than queue them if the TV falls behind.
+      if (msg.startsWith('{"t":"img"') && (room.tv?.bufferedAmount ?? 0) > 256 * 1024) return;
+      send(room.tv, msg);
+    });
     ws.on('close', () => {
       if (room.phone === ws) {
         room.phone = undefined;

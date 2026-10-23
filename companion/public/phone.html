@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#232f3e">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%2314213d%27/%3E%3Ccircle cx=%2732%27 cy=%2718%27 r=%277%27 fill=%27%23f2c14e%27/%3E%3Cpath d=%27M32 28v22M20 30l12 2 12-2M14 52h36%27 stroke=%27%23f7f3ea%27 stroke-width=%275%27 stroke-linecap=%27round%27 fill=%27none%27/%3E%3C/svg%3E">
-<title>Steady camera</title>
+<title>Amazon Steady camera</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
@@ -14,7 +14,15 @@
   html, body { margin: 0; height: 100%; background: var(--night); color: var(--cream); font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
   body { display: flex; flex-direction: column; min-height: 100dvh; padding: env(safe-area-inset-top) 16px calc(16px + env(safe-area-inset-bottom)); }
   header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; gap: 12px; margin: 0 -16px 14px; background: var(--surface); border-bottom: 3px solid var(--orange); }
-  header strong { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+  header strong { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 6px; }
+  header strong small { font-size: 15px; font-weight: 600; color: var(--orange); letter-spacing: 0; }
+  .share { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 2px 0; padding: 12px 14px; background: var(--deep); border: 1px solid var(--surface2); border-radius: 14px; }
+  .share span { font-size: 15px; color: var(--muted); line-height: 1.35; }
+  .share span b { display: block; color: var(--cream); font-size: 16px; }
+  .switch { flex: none; position: relative; width: 58px; height: 34px; border-radius: 999px; background: var(--surface2); padding: 0; transition: background .2s; }
+  .switch::after { content: ''; position: absolute; top: 4px; left: 4px; width: 26px; height: 26px; border-radius: 50%; background: #fff; transition: transform .2s cubic-bezier(.2,0,0,1); }
+  .switch[aria-checked="true"] { background: var(--orange); }
+  .switch[aria-checked="true"]::after { transform: translateX(24px); }
   .status { font-size: 15px; color: var(--muted); display: flex; align-items: center; gap: 8px; text-align: right; }
   .status::before { content: ''; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
   .status[data-ok="true"]::before { background: var(--sage); }
@@ -41,7 +49,7 @@
 </head>
 <body>
   <header>
-    <strong>Steady</strong>
+    <strong><small>amazon</small>steady</strong>
     <span class="status" id="status">Connecting to your TV…</span>
   </header>
 
@@ -52,7 +60,11 @@
       <p id="overlay-text">Prop your phone against something sturdy, about 2 to 3 meters away, so it can see you from head to feet.</p>
       <button class="primary" id="start">Start camera</button>
     </div>
-    <div class="private" id="private" hidden>Your video stays on this phone. Only body points go to the TV.</div>
+  </div>
+
+  <div class="share">
+    <span><b>Show my camera on the TV</b><span id="share-note">A small live picture appears beside the coach. Nothing is recorded or stored.</span></span>
+    <button class="switch" id="share" role="switch" aria-checked="true" aria-label="Show my camera on the TV"></button>
   </div>
 
   <div class="now" id="now"><b>Waiting for the TV</b><span>Pick an exercise on your TV with the remote.</span></div>
@@ -73,7 +85,33 @@ const code = location.pathname.split('/').filter(Boolean).pop();
 const $ = id => document.getElementById(id);
 const statusEl = $('status');
 let ws, landmarker, video = $('video'), canvas = $('canvas'), ctx = canvas.getContext('2d');
-let paused = false, lastSent = 0, running = false;
+let paused = false, lastSent = 0, lastPic = 0, running = false;
+
+// Camera on the TV: on unless the person turned it off on this phone. Pictures are relayed live, never stored.
+let share = true;
+try { share = localStorage.getItem('steady-share') !== 'off'; } catch {}
+function showShare() {
+  $('share').setAttribute('aria-checked', String(share));
+  $('share-note').textContent = share ? 'A small live picture appears beside the coach. Nothing is recorded or stored.' : 'Off: only body points go to the TV. Your video stays on this phone.';
+}
+showShare();
+$('share').onclick = () => {
+  share = !share;
+  try { localStorage.setItem('steady-share', share ? 'on' : 'off'); } catch {}
+  showShare();
+  if (!share) sendJson({ t: 'img', d: null });
+};
+const pic = document.createElement('canvas');
+const picCtx = pic.getContext('2d');
+function sendPicture() {
+  if (!share || ws?.readyState !== 1 || ws.bufferedAmount > 64 * 1024) return;
+  const w = 240, h = Math.round(w * video.videoHeight / video.videoWidth);
+  if (!h) return;
+  pic.width = w; pic.height = h;
+  picCtx.drawImage(video, 0, 0, w, h);
+  const url = pic.toDataURL('image/jpeg', 0.55);
+  ws.send(JSON.stringify({ t: 'img', ar: +(w / h).toFixed(3), d: url.slice(url.indexOf(',') + 1) }));
+}
 
 function setStatus(text, ok) { statusEl.textContent = text; statusEl.dataset.ok = ok === undefined ? '' : String(ok); }
 
@@ -141,7 +179,6 @@ $('start').onclick = async () => {
       numPoses: 1
     });
     $('overlay').hidden = true;
-    $('private').hidden = false;
     running = true;
     try { await navigator.wakeLock?.request('screen'); } catch {}
     requestAnimationFrame(loop);
@@ -170,6 +207,10 @@ function loop(now) {
     } else {
       sendJson({ t: 'pose', ts: Date.now(), lm: null });
     }
+  }
+  if (video.readyState >= 2 && now - lastPic >= 150) {
+    lastPic = now;
+    sendPicture();
   }
   requestAnimationFrame(loop);
 }

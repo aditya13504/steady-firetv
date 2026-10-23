@@ -155,6 +155,7 @@ object Motions {
         ExerciseId.ONE_LEG_STAND -> Motion(
             listOf(Triple(Figure.STAND, 900, 1200), Triple(Figure.ONE_LEG_R, 700, 11000), Triple(Figure.STAND, 700, 1500), Triple(Figure.ONE_LEG_L, 700, 11000))
         )
+        else -> MoreExercises.motion(id)
     }
 }
 

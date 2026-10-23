@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -129,7 +130,11 @@ private fun RowScope.KeyHint(key: String, action: String) {
 fun Wordmark(modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         LogoMark(Modifier.size(34.dp), progress = 1f)
-        Text("steady", style = T.title.copy(fontSize = 26.sp, letterSpacing = (-0.5).sp))
+        // "amazon" set small above "steady" keeps the full name without crowding the top navigation.
+        Column {
+            Text("amazon", style = T.small.copy(color = C.orange, fontSize = 13.sp, lineHeight = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.6.sp))
+            Text("steady", style = T.title.copy(fontSize = 26.sp, lineHeight = 26.sp, letterSpacing = (-0.5).sp))
+        }
     }
 }
 

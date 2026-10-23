@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.steady.tv.data.Coach
+import com.steady.tv.data.Condition
 import com.steady.tv.data.CoachNote
 import com.steady.tv.data.DemoHousehold
 import com.steady.tv.data.FamilyNote
@@ -104,6 +105,9 @@ class AppController(
     var household by mutableStateOf<Household?>(null)
     var selectedId by mutableStateOf<String?>(null)
     var plan by mutableStateOf<Plan?>(null)
+    /** Latest live camera picture from the phone, when the person allows it; shown beside the skeleton. */
+    var camera by mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
+    var cameraAt = 0L
     var intro by mutableStateOf<String?>(null)
     var pairing by mutableStateOf(Pairing())
     var session by mutableStateOf<SessionRun?>(null)
@@ -203,8 +207,8 @@ class AppController(
     }
 
     /** First-run setup and "Add a person" in Settings. */
-    fun addPerson(name: String, age: Int, female: Boolean, goal: String, familyName: String?, familyRelation: String?) {
-        val person = Person(DemoHousehold.newPersonId(), name.trim(), age, female, goal.trim())
+    fun addPerson(name: String, age: Int, female: Boolean, goal: String, familyName: String?, familyRelation: String?, conditions: Set<Condition> = emptySet()) {
+        val person = Person(DemoHousehold.newPersonId(), name.trim(), age, female, goal.trim(), conditions = conditions)
         val h = household?.takeIf { !it.demo }
         val next = if (h == null) {
             Household(
@@ -224,6 +228,13 @@ class AppController(
         tab = Tab.HOME
         screen = Screen.MAIN
         flash("${person.name} is set up. The first session includes a strength check, so Steady can track progress.")
+    }
+
+    /** Health changes over time: update what the plan works around, from Settings. */
+    fun setConditions(personId: String, conditions: Set<Condition>) {
+        val h = household ?: return
+        save(h.copy(people = h.people.map { if (it.id == personId) it.copy(conditions = conditions) else it }))
+        refreshPlan()
     }
 
     fun removePerson(p: Person) {
@@ -259,7 +270,7 @@ class AppController(
         speech.muted = !voiceOn
     }
 
-    private fun flash(text: String) {
+    fun flash(text: String) {
         toast = text
         scope.launch {
             delay(4_500)
@@ -288,7 +299,7 @@ class AppController(
 
     fun sendTestAlert() {
         val h = household ?: return
-        notifyFamily("test", "Steady is connected", "This is a test from ${h.name}. You'll get session summaries here, and an urgent alert if a fall is detected.", false, listOf("white_check_mark"))
+        notifyFamily("test", "Amazon Steady is connected", "This is a test from ${h.name}. You'll get session summaries here, and an urgent alert if a fall is detected.", false, listOf("white_check_mark"))
         flash("Test sent to ${h.familyName.ifBlank { "the family" }}'s phone.")
     }
 
@@ -572,6 +583,7 @@ class AppController(
             }
             is PhoneEvent.PhoneLink -> {
                 pairing = pairing.copy(phoneConnected = e.connected)
+                if (!e.connected) camera = null
                 if (e.connected && screen == Screen.PAIR) {
                     speech.say("Phone connected.")
                     scope.launch {
@@ -589,6 +601,10 @@ class AppController(
                 ingest(PoseFrame.fromImage(pts, now(), e.aspect))
             }
             is PhoneEvent.Command -> onCommand(e.cmd)
+            is PhoneEvent.Picture -> {
+                camera = e.image
+                cameraAt = now()
+            }
         }
     }
 

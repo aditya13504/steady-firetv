@@ -1,12 +1,12 @@
-# Steady
+# Amazon Steady
 
 **A strength-and-balance coach for Fire TV that helps older adults stay on their feet.**
 
-Steady turns the TV into a patient exercise coach for fall prevention. Your phone, propped against a book, becomes the camera: it tracks your body on the phone itself and sends only 33 joint positions to the TV. The TV shows an animated coach next to a live mirror of you, counts reps, times balance holds, gives one plain-language cue at a time, and checks on you if you go down.
+Amazon Steady turns the TV into a patient exercise coach for fall prevention. Your phone, propped against a book, becomes the camera: it tracks your body on the phone itself. The TV shows an animated coach, a live mirror of you and (if you allow it) your live camera picture with the tracking lines drawn on, counts reps, times balance holds, gives one plain-language cue at a time, and checks on you if you go down. **28 exercises**, chosen and adjusted for each person's health and progress.
 
 Built for the **Fire TV track** of the Build, Ship, Shape Amazon Developer Hackathon.
 
-![Steady session: coach, live mirror, rep counter and a form cue](docs/images/session.png)
+![Session: coach, live mirror, live camera with tracking lines, and the rep counter](docs/images/session.png)
 
 ## Why
 
@@ -19,9 +19,10 @@ Built for the **Fire TV track** of the Build, Ship, Shape Amazon Developer Hacka
 
 | | |
 |---|---|
-| **Phone as camera** | Scan a QR code on the TV. Pose estimation (MediaPipe Pose Landmarker) runs **on the phone**; only joint points travel to the TV. Video never leaves the phone. |
+| **Phone as camera** | Scan a QR code on the TV. Pose estimation (MediaPipe Pose Landmarker) runs **on the phone**. A switch on the phone (on by default) shows a small live picture on the TV with the tracked lines and joints drawn over it; it is relayed live and never recorded or stored. Switch it off and only joint points reach the TV. |
 | **Coach + mirror** | An animated coach demonstrates each move beside a mirrored skeleton of you, so "do what I do" works from the sofa. |
-| **Counts and corrects** | Rep counting for sit-to-stand, heel raises, marching and side leg raises; a timer and steadiness score for one-leg balance; one form cue at a time ("Stand all the way up", "Lift your knees a little higher"), spoken and shown. |
+| **28 exercises, all tracked** | Leg strength, balance, arms and shoulders, mobility, seated cardio and the CDC check: from sit to stand and heel-to-toe standing to seated knee straightening, arm curls, head turns and seated jacks. Every move is counted or timed from the body's own proportions, with one form cue at a time ("Stand all the way up", "Bend your knees a little more"), spoken and shown. |
+| **Planned around your health** | At setup (or later in Settings) choose any of: knee pain, hip replacement, back pain, osteoporosis, shoulder pain, dizziness, a fall this year, a cane or walker, heart or blood pressure. The plan leaves out moves that aren't advised, swaps in safer ones (hands-assisted standing for sore knees, seated march for dizziness, feet-together balance after a fall) and starts gentler. Then it keeps adapting from the person's own data: more reps after two good sessions, arms crossed once sit to stand is easy, extra leg strength when the chair stand check is below the CDC norm, weight-shift practice when they keep leaning, and two extras that change day to day. |
 | **Multi-modal control** | D-pad on the Fire TV remote (OK pauses, ▶ skips, Back finishes), voice on the phone ("pause", "easier", "next", "I'm OK"), big visuals on the TV, in one flow. |
 | **Safety check** | If the body goes horizontal and stays there, the session stops, a full-screen "Are you OK?" appears, and after 15 seconds without an answer the family gets an **urgent push notification**. "I'm OK" sends a follow-up. |
 | **Clinically grounded progress** | The CDC STEADI 30-second chair stand test, scored against age and sex norms and repeated every two weeks. Progress charts per person. |
@@ -33,13 +34,13 @@ Built for the **Fire TV track** of the Build, Ship, Shape Amazon Developer Hacka
 | | |
 |---|---|
 | ![Home: Fire TV hero with greeting, today's adaptive plan, people](docs/images/home.png) | ![Session: coach, live mirror, rep counter and a form cue](docs/images/session.png) |
-| **Home.** Predicts who's exercising, explains today's plan. | **Session.** Coach, live mirror, animated counter, one cue at a time. |
+| **Home.** Predicts who's exercising, explains today's plan. | **Session.** Coach, mirror, live camera with tracking lines, counter, one cue at a time. |
 | ![Progress charts against the CDC norm](docs/images/progress.png) | ![Possible fall: are you OK?](docs/images/alert.png) |
 | **Progress.** Sit to stand, balance and the chair stand check over time. | **Safety.** No answer, so the family gets an urgent push alert. |
 | ![Summary with the AI coach's note and the CDC norm marker](docs/images/summary.png) | ![Family: scan once for push alerts](docs/images/family-tab.png) |
 | **Summary.** The AI coach's note and the strength check against the norm. | **Family.** Scan once for push alerts; a test button proves it works. |
 | ![First-run setup with the TV keyboard](docs/images/setup.png) | ![Exercise library](docs/images/exercises.png) |
-| **Setup.** Built for the remote: D-pad age stepper, chips, TV keyboard. | **Exercises.** Practise any move on its own. |
+| **Setup.** Built for the remote: D-pad age stepper, chips, health conditions, TV keyboard. | **Exercises.** 28 moves in Fire TV rows; moves your health rules out are dimmed with the reason. |
 
 <img src="docs/images/family-web.png" alt="Family page on a phone, subscribed to push alerts" width="300" align="right">
 
@@ -75,10 +76,10 @@ flowchart LR
   TV -- summaries, urgent alerts --> NTFY
 ```
 
-- **`tv/`**: the Fire TV app. Kotlin with Jetpack Compose for TV (Amazon's Fire TV starter stack), minSdk 25 (Fire OS 6+), Leanback banner, D-pad and media-key handling, Android TextToSpeech, OkHttp WebSocket. A Fire TV-native look: squid-ink surfaces, Amazon orange actions, Prime blue focus glow, top navigation, and motion throughout (animated logo, ambient light, spring focus, rep bursts, ring sweeps, confetti, pulse rings, staggered reveals). The exercise engine (`pose/`) and the coach rules (`data/`) are pure Kotlin with JVM tests.
+- **`tv/`**: the Fire TV app. Kotlin with Jetpack Compose for TV (Amazon's Fire TV starter stack), minSdk 25 (Fire OS 6+), Leanback banner, D-pad and media-key handling, Android TextToSpeech, OkHttp WebSocket. A Fire TV-native look: squid-ink surfaces, Amazon orange actions, Prime blue focus glow, top navigation, and motion throughout (animated logo, ambient light, spring focus, rep bursts, ring sweeps, confetti, pulse rings, staggered reveals). The exercise engine (`pose/`, 28 exercises from two reusable trackers) and the coach and health rules (`data/`) are pure Kotlin with JVM tests.
 - **`companion/`**: Node + TypeScript, **stateless**: pairs phone and TV by a 6-digit code and relays frames, serves the phone and family pages, and turns plans and sessions into the coach's words. Rate-limited, input-validated, size-capped. The LLM key stays here. Without a key the TV uses its own rule-based coach text.
 - **[steady-pose](https://github.com/aditya13504/steady-pose)**: the exercise engine as a standalone MIT library.
-- **Demo person**: a synthetic person generated from the coach's keyframes (with jitter and the occasional sloppy rep), so the app runs with no camera, and the tests use it too.
+- **Demo person**: a synthetic person generated from the coach's keyframes (with jitter and the occasional sloppy rep), so the app runs with no camera, and the tests use it too: every one of the 28 exercises is checked to reach its target, count nothing while the person keeps still, and never look like a fall.
 
 ## Run it
 
@@ -139,7 +140,7 @@ Choose **Set up my household** (or **Try the demo**). Add a person, then **Start
 ## Tests
 
 ```bash
-cd tv && ./gradlew testDebugUnitTest      # 19 tests: reps, cues, holds, fall check (and re-arming after "I'm OK"), CDC norms, plan progression, household prediction, storage
+cd tv && ./gradlew testDebugUnitTest      # 28 tests: all 28 exercises, health-based planning, fall check (and re-arming after "I'm OK"), CDC norms, plan progression, household prediction, storage
 cd companion && npm test                  # 6 tests: pairing relay, code-guess limiting, coach endpoint validation, family page routing
 ```
 

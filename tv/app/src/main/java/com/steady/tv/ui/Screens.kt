@@ -11,6 +11,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -50,6 +52,7 @@ import androidx.tv.material3.Text
 import com.steady.tv.AppController
 import com.steady.tv.SessionRun
 import com.steady.tv.Stage
+import com.steady.tv.pose.ExerciseId
 import com.steady.tv.pose.Kind
 import kotlinx.coroutines.delay
 
@@ -74,7 +77,7 @@ fun PairScreen(app: AppController) {
                 Text("Your phone is the camera", style = T.display.copy(fontSize = 36.sp), maxLines = 1, modifier = Modifier.appear(1))
                 Step("1", "Scan the code with your phone.", 2)
                 Step("2", "Prop it 2 to 3 meters away, facing you.", 3)
-                Step("3", "Video stays on the phone. Only joint positions reach the TV.", 4)
+                Step("3", "Tracking runs on the phone. You choose if its picture shows here.", 4)
                 if (p.code != null) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.appear(5)) {
                         Text("Code", style = T.small)
@@ -140,23 +143,24 @@ fun SessionScreen(app: AppController) {
                 )
             }
 
-            Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Panel(Modifier.weight(1f).fillMaxHeight()) {
-                    CoachFigure(info.id, Modifier.fillMaxSize().padding(10.dp), playing = !run.paused)
-                    Text("Coach", style = T.small, modifier = Modifier.padding(18.dp))
+                    CoachFigure(info.id, Modifier.fillMaxSize().padding(8.dp), playing = !run.paused)
+                    PanelLabel("Coach", C.muted)
                 }
                 Panel(Modifier.weight(1f).fillMaxHeight()) {
-                    MirrorSkeleton(run.pose, Modifier.fillMaxSize().padding(10.dp), dim = run.lostSight)
-                    Text("You", style = T.small.copy(color = C.blue), modifier = Modifier.padding(18.dp))
+                    MirrorSkeleton(run.pose, Modifier.fillMaxSize().padding(8.dp), dim = run.lostSight)
+                    PanelLabel("You", C.blue)
                     if (run.pose == null || run.lostSight) {
                         Text(
                             "Step back until I can see you from head to feet",
-                            style = T.heading.copy(color = C.muted), textAlign = TextAlign.Center,
-                            modifier = Modifier.align(Alignment.Center).padding(40.dp)
+                            style = T.body.copy(color = C.muted), textAlign = TextAlign.Center,
+                            modifier = Modifier.align(Alignment.Center).padding(18.dp)
                         )
                     }
                 }
-                Counter(run, Modifier.width(260.dp).fillMaxHeight())
+                LiveCamera(app, run, Modifier.weight(1f).fillMaxHeight())
+                Counter(run, Modifier.width(230.dp).fillMaxHeight())
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -190,6 +194,39 @@ fun SessionScreen(app: AppController) {
 }
 
 @Composable
+private fun BoxScope.PanelLabel(text: String, color: Color) {
+    Text(text, style = T.small.copy(color = color), modifier = Modifier.align(Alignment.TopStart).padding(14.dp))
+}
+
+/** Third panel: the phone's live picture with the tracked lines on top, when the person allows it. */
+@Composable
+private fun LiveCamera(app: AppController, run: SessionRun, modifier: Modifier) {
+    var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
+    LaunchedEffect(Unit) { while (true) { now = SystemClock.elapsedRealtime(); delay(500) } }
+    val image = app.camera?.takeIf { now - app.cameraAt < 3_000 }
+    Panel(modifier, color = C.night) {
+        if (image != null) {
+            CameraView(image, run.pose, Modifier.fillMaxSize())
+            Row(Modifier.align(Alignment.TopStart).padding(12.dp).clip(RoundedCornerShape(999.dp)).background(C.ink.copy(alpha = 0.8f)).padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PulseDot(C.red)
+                Text("Live camera", style = T.small.copy(color = C.white, fontSize = 15.sp))
+            }
+        } else {
+            PanelLabel("Live camera", C.muted)
+            Text(
+                when {
+                    run.demo -> "The demo person has no camera. Link a phone to see yourself here."
+                    !app.pairing.phoneConnected -> "Link your phone to see the live camera here."
+                    else -> "Camera picture is off. Turn on “Show my camera on the TV” on your phone."
+                },
+                style = T.body.copy(color = C.muted, fontSize = 18.sp, lineHeight = 25.sp), textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.Center).padding(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
 private fun PlanProgress(run: SessionRun) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         run.items.indices.forEach { i ->
@@ -209,7 +246,7 @@ private fun Counter(run: SessionRun, modifier: Modifier) {
     val st = run.trackerState
     val info = run.info
     val (big, ringTarget, under) = when (info.kind) {
-        Kind.HOLD -> Triple("${st.holdMs / 1000}", st.progress, "seconds on one foot")
+        Kind.HOLD -> Triple("${st.holdMs / 1000}", st.progress, if (info.id == ExerciseId.ONE_LEG_STAND) "seconds on one foot" else "of ${info.holdSeconds} seconds")
         Kind.TIMED_TEST -> Triple("${st.reps}", ((st.remainingMs ?: 30_000L) / 30_000f), "stands, ${((st.remainingMs ?: 30_000L) + 999) / 1000} s left")
         Kind.REPS -> Triple("${st.reps}", if (st.target > 0) st.reps / st.target.toFloat() else 0f, "of ${st.target} ${info.unit}")
     }

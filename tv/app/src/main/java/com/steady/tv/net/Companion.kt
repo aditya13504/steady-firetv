@@ -1,6 +1,10 @@
 package com.steady.tv.net
 
+import android.graphics.BitmapFactory
 import android.os.Handler
+import android.util.Base64
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import android.os.Looper
 import com.steady.tv.data.CoachNote
 import com.steady.tv.data.Household
@@ -30,6 +34,8 @@ sealed interface PhoneEvent {
     data class Pose(val pts: List<Pt>?, val aspect: Float) : PhoneEvent
     data class Command(val cmd: String, val said: String?) : PhoneEvent
     data class Link(val up: Boolean) : PhoneEvent
+    /** A small live camera picture, when the person lets the phone show it on the TV (null: turned off). */
+    class Picture(val image: ImageBitmap?) : PhoneEvent
 }
 
 private val JSON_TYPE = "application/json".toMediaType()
@@ -63,6 +69,10 @@ class CompanionClient(var baseUrl: String, private val onEvent: (PhoneEvent) -> 
                     "phone" -> post(PhoneEvent.PhoneLink(m.optBoolean("connected")))
                     "pose" -> post(PhoneEvent.Pose(parsePose(m.optJSONArray("lm")), m.optDouble("ar", 0.75).toFloat()))
                     "cmd" -> post(PhoneEvent.Command(m.getString("cmd"), m.optString("said").ifBlank { null }))
+                    // decoded here, off the main thread; a bad picture is simply skipped
+                    "img" -> post(PhoneEvent.Picture(m.optString("d").takeIf { it.isNotEmpty() && it != "null" }?.let { d ->
+                        runCatching { Base64.decode(d, Base64.DEFAULT).let { b -> BitmapFactory.decodeByteArray(b, 0, b.size) }?.asImageBitmap() }.getOrNull() ?: return
+                    }))
                 }
             }
 

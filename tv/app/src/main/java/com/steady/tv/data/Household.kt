@@ -37,8 +37,22 @@ data class Person(
     val age: Int,
     val female: Boolean,
     val goal: String = "",
-    val history: List<SessionRecord> = emptyList()
+    val history: List<SessionRecord> = emptyList(),
+    val conditions: Set<Condition> = emptySet()
 )
+
+/** Health conditions that change which exercises are safe and how hard they start. Chosen at setup. */
+enum class Condition(val label: String) {
+    KNEE_PAIN("Knee pain"),
+    HIP_REPLACEMENT("Hip replacement"),
+    BACK_PAIN("Back pain"),
+    OSTEOPOROSIS("Osteoporosis"),
+    SHOULDER_PAIN("Shoulder pain"),
+    DIZZINESS("Dizziness"),
+    RECENT_FALL("Fell this year"),
+    WALKING_AID("Cane or walker"),
+    HEART("Heart or blood pressure")
+}
 
 data class FamilyNote(val at: Long, val kind: String, val text: String)
 
@@ -79,6 +93,7 @@ object HouseholdJson {
 
     fun personJson(p: Person): JSONObject = JSONObject()
         .put("id", p.id).put("name", p.name).put("age", p.age).put("female", p.female).put("goal", p.goal)
+        .put("conditions", JSONArray(p.conditions.map { it.name }))
         .put("history", JSONArray(p.history.map { sessionJson(it) }))
 
     fun sessionJson(s: SessionRecord): JSONObject = JSONObject()
@@ -104,7 +119,9 @@ object HouseholdJson {
 
     private fun readPerson(p: JSONObject): Person {
         val h = p.getJSONArray("history")
-        return Person(p.getString("id"), p.getString("name"), p.getInt("age"), p.getBoolean("female"), p.optString("goal"), List(h.length()) { readSession(h.getJSONObject(it)) })
+        val c = p.optJSONArray("conditions")
+        val conditions = if (c == null) emptySet() else List(c.length()) { c.optString(it) }.mapNotNull { n -> Condition.entries.firstOrNull { it.name == n } }.toSet()
+        return Person(p.getString("id"), p.getString("name"), p.getInt("age"), p.getBoolean("female"), p.optString("goal"), List(h.length()) { readSession(h.getJSONObject(it)) }, conditions)
     }
 
     private fun readSession(s: JSONObject): SessionRecord {
@@ -179,7 +196,8 @@ object DemoHousehold {
                     session(at(6, 9, 20, now), 10, 10, 7, 70),
                     session(at(4, 9, 0, now), 10, 10, 8, 72),
                     session(at(2, 9, 15, now), 10, 10, 8, 75)
-                )
+                ),
+                conditions = setOf(Condition.OSTEOPOROSIS)
             ),
             Person(
                 "walter", "Walter", 81, false, "Get up from the sofa without pushing off with my hands.",
@@ -187,7 +205,8 @@ object DemoHousehold {
                     session(at(8, 18, 30, now), 5, 8, 3, 50, chair = 8),
                     session(at(5, 18, 40, now), 6, 8, 3, 54),
                     session(at(3, 18, 20, now), 7, 8, 4, 57)
-                )
+                ),
+                conditions = setOf(Condition.SHOULDER_PAIN)
             )
         )
     )

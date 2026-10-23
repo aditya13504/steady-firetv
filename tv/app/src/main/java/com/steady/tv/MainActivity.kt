@@ -48,11 +48,12 @@ class MainActivity : ComponentActivity() {
         app = AppController(lifecycleScope, Speech(this), HouseholdStore(File(filesDir, "household.json")), server, hour)
         app.onServerChanged = { prefs.edit().putString("server", it).apply() }
         app.start()
-        // Scripted first-run setup for automated tests: --es setup "Ravi,84,m,Priya,daughter"
+        // Scripted first-run setup for automated tests: --es setup "Ravi,84,m,Priya,daughter,KNEE_PAIN;WALKING_AID"
         intent.getStringExtra("setup")?.split(",")?.takeIf { it.size >= 3 }?.let { f ->
             lifecycleScope.launch {
                 kotlinx.coroutines.delay(AppController.SPLASH_MS + 300)
-                app.addPerson(f[0], f[1].toInt(), f[2].startsWith("f"), "", f.getOrNull(3), f.getOrNull(4))
+                val conditions = f.getOrNull(5)?.split(";")?.mapNotNull { n -> com.steady.tv.data.Condition.entries.firstOrNull { it.name == n.trim() } }?.toSet() ?: emptySet()
+                app.addPerson(f[0], f[1].toInt(), f[2].startsWith("f"), "", f.getOrNull(3), f.getOrNull(4), conditions)
             }
         }
         intent.getStringExtra("demo")?.let { person ->
