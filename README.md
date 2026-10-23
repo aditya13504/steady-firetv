@@ -41,6 +41,11 @@ Built for the **Fire TV track** of the Build, Ship, Shape Amazon Developer Hacka
 | ![First-run setup with the TV keyboard](docs/images/setup.png) | ![Exercise library](docs/images/exercises.png) |
 | **Setup.** Built for the remote: D-pad age stepper, chips, TV keyboard. | **Exercises.** Practise any move on its own. |
 
+<img src="docs/images/family-web.png" alt="Family page on a phone, subscribed to push alerts" width="300" align="right">
+
+**The family's phone.** Scanning the QR code on the Family tab opens this page: one tap installs or subscribes in the free ntfy app, and updates also appear live here.
+<br clear="right">
+
 ## How it works
 
 ```mermaid

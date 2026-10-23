@@ -92,7 +92,7 @@ function render(m, fresh) {
   if (fresh && urgent && navigator.vibrate) navigator.vibrate([300, 150, 300]);
 }
 
-fetch(`https://ntfy.sh/${topic}/json?poll=1&since=7d`).then(r => r.text()).then(t => {
+fetch(`https://ntfy.sh/${topic}/json?poll=1&since=all`).then(r => r.text()).then(t => {
   t.split('\n').filter(Boolean).map(l => JSON.parse(l)).sort((a, b) => a.time - b.time).forEach(m => render(m, false));
 }).catch(() => {});
 
